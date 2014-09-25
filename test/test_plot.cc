@@ -84,6 +84,7 @@ int main(int argc, char** argv)
     }
   }
 
+  // Draw
   mg->Draw("ac");
   stringstream title;
   title << "Jet energy profile at E = " << E;
