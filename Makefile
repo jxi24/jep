@@ -62,7 +62,7 @@ lib/test_plot.o: lib/%.o: test/%.cc
 
 lib/test_profile.o: lib/%.o: test/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m ... "
-	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) -c $(filter %.cc,$^) -o $@
+	@$(CPP) $(CFLAGS) $(FJ_CFLAGS) $(ROOT_CFLAGS) -c $(filter %.cc,$^) -o $@
 
 lib/write_data.o: lib/%.o: write/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m ... "
