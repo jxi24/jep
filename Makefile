@@ -6,16 +6,19 @@ DIRS := lib bin
 BAK = BAK/backup`date +%s`.tar.gz
 
 CFLAGS := -Wall -g -I.
+
 ROOT_CFLAGS := $(shell root-config --cflags)
 ROOT_LIBS   := $(shell root-config --libs)
-FJ_LIBS := $(shell /work/raida/isaacs21/fastjet/bin/fastjet-config --libs)
-FJ_CFLAGS := $(shell /work/raida/isaacs21/fastjet/bin/fastjet-config --cxxflags)
+
+FJ_LIBS := -lfastjet
+#FJ_LIBS := $(shell /work/raida/isaacs21/fastjet/bin/fastjet-config --libs)
+#FJ_CFLAGS := $(shell /work/raida/isaacs21/fastjet/bin/fastjet-config --cxxflags)
 
 FC := gfortran
 FFLAGS := -ffixed-line-length-none -fno-automatic -O2
 
-#CERN_LIB := -lmathlib
-CERN_LIB := -L/usr/lib64/cernlib/2006-g77/lib -lmathlib
+CERN_LIB := -lmathlib
+#CERN_LIB := -L/usr/lib64/cernlib/2006-g77/lib -lmathlib
 
 LHAPDF_CONFIG := /work/raida/isaacs21/LHAPDF/LHAPDF6/bin/lhapdf-config
 LHAPDF_FLAGS := $(shell $(LHAPDF_CONFIG) --cppflags)
@@ -24,7 +27,7 @@ LHAPDF_LIBS  := $(shell $(LHAPDF_CONFIG) --ldflags)
 .PHONY: all clean backup
 
 EXE := bin/test_write bin/test_ascii bin/test_interp \
-       bin/test_profile \
+       bin/test_plot bin/test_profile \
        bin/write_data
 
 all: $(DIRS) $(EXE)
@@ -41,7 +44,7 @@ lib/jep_common.o lib/jep_writer.o lib/jep_reader.o: lib/jep_%.o: jep/%.cc jep/%.
 # fastjet interface
 lib/jep_profile.o: lib/jep_%.o: jep/%.cc jep/%.h
 	@echo -e "Compiling \E[0;49;96m"$@"\E[0;0m ... "
-	@$(CPP) $(CFLAGS) $(FJ_CFLAGS) -c $(filter %.cc,$^) -o $@
+	@$(CPP) $(CFLAGS) -c $(filter %.cc,$^) -o $@
 
 # fortran object rule
 lib/%.o: write/%.f90
@@ -53,9 +56,13 @@ lib/test_write.o lib/test_ascii.o lib/test_interp.o: lib/%.o: test/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m ... "
 	@$(CPP) $(CFLAGS) -c $(filter %.cc,$^) -o $@
 
+lib/test_plot.o: lib/%.o: test/%.cc
+	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m ... "
+	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) -c $(filter %.cc,$^) -o $@
+
 lib/test_profile.o: lib/%.o: test/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m ... "
-	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) $(FJ_CFLAGS) -c $(filter %.cc,$^) -o $@
+	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) -c $(filter %.cc,$^) -o $@
 
 lib/write_data.o: lib/%.o: write/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m ... "
@@ -65,6 +72,10 @@ lib/write_data.o: lib/%.o: write/%.cc
 bin/test_write bin/test_ascii bin/test_interp: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
 	@$(CPP) $(filter %.o,$^) -o $@
+
+bin/test_plot: bin/%: lib/%.o
+	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
+	@$(CPP) $(filter %.o,$^) -o $@ $(ROOT_LIBS)
 
 bin/test_profile: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
@@ -90,11 +101,15 @@ lib/write_data.o  : jep/common.h jep/writer.h
 bin/test_write    : lib/jep_common.o lib/jep_writer.o lib/jep_reader.o
 bin/test_interp   : lib/jep_common.o lib/jep_reader.o
 bin/test_ascii    : lib/jep_common.o lib/jep_reader.o
+bin/test_plot     : lib/jep_common.o lib/jep_reader.o
 bin/test_profile  : lib/jep_profile.o
 bin/write_data    : lib/jep_common.o lib/jep_writer.o lib/mod_constant.o lib/mod_terms.o
 
 clean:
 	rm -rf bin lib/jep_* lib/test_* lib/write_*
+
+deepclean:
+	rm -rf bin lib dat test.*
 
 backup:
 	@echo -e "Creating \E[0;49;93m"$(BAK)"\E[0;0m"
