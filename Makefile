@@ -25,7 +25,8 @@ LHAPDF_LIBS  := $(shell $(LHAPDF_CONFIG) --ldflags)
 
 EXE := bin/test_write bin/test_ascii bin/test_interp \
        bin/test_profile \
-       bin/write_data
+       bin/write_data \
+	   bin/test_statistics
 
 all: $(DIRS) $(EXE)
 
@@ -34,7 +35,7 @@ $(DIRS):
 	@mkdir -p $@
 
 # jep object rule
-lib/jep_common.o lib/jep_writer.o lib/jep_reader.o: lib/jep_%.o: jep/%.cc jep/%.h
+lib/jep_common.o lib/jep_writer.o lib/jep_reader.o lib/jep_statistics.o: lib/jep_%.o: jep/%.cc jep/%.h
 	@echo -e "Compiling \E[0;49;96m"$@"\E[0;0m ... "
 	@$(CPP) $(CFLAGS) -c $(filter %.cc,$^) -o $@
 
@@ -53,7 +54,7 @@ lib/test_write.o lib/test_ascii.o lib/test_interp.o: lib/%.o: test/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m ... "
 	@$(CPP) $(CFLAGS) -c $(filter %.cc,$^) -o $@
 
-lib/test_profile.o: lib/%.o: test/%.cc
+lib/test_profile.o lib/test_statistics.o: lib/%.o: test/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m ... "
 	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) $(FJ_CFLAGS) -c $(filter %.cc,$^) -o $@
 
@@ -66,7 +67,7 @@ bin/test_write bin/test_ascii bin/test_interp: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
 	@$(CPP) $(filter %.o,$^) -o $@
 
-bin/test_profile: bin/%: lib/%.o
+bin/test_profile bin/test_statistics: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
 	@$(CPP) $(filter %.o,$^) -o $@ $(ROOT_LIBS) $(FJ_LIBS)
 
@@ -75,23 +76,26 @@ bin/write_data: bin/%: lib/%.o
 	@$(CPP) $(filter %.o,$^) -o $@ -lgfortran $(CERN_LIB) $(LHAPDF_LIBS)
 
 # OBJ dependencies
-lib/jep_writer.o  : jep/common.h jep/exception.h
-lib/jep_reader.o  : jep/common.h jep/exception.h
-lib/jep_profile.o : jep/exception.h
+lib/jep_writer.o     : jep/common.h jep/exception.h
+lib/jep_reader.o     : jep/common.h jep/exception.h
+lib/jep_profile.o    : jep/exception.h
+lib/jep_statistics.o : jep/common.h jep/exception.h jep/reader.h
 
 # EXE_OBJ dependencies
-lib/test_write.o  : jep/common.h jep/writer.h jep/reader.h
-lib/test_interp.o : jep/common.h jep/reader.h
-lib/test_ascii.o  : jep/common.h jep/reader.h
-lib/test_profile.o: jep/profile.h
-lib/write_data.o  : jep/common.h jep/writer.h
+lib/test_write.o      : jep/common.h jep/writer.h jep/reader.h
+lib/test_interp.o     : jep/common.h jep/reader.h
+lib/test_ascii.o      : jep/common.h jep/reader.h
+lib/test_profile.o    : jep/profile.h
+lib/write_data.o      : jep/common.h jep/writer.h
+lib/test_statistics.o : jep/common.h jep/reader.h jep/statistics.h
 
 # EXE dependencies
-bin/test_write    : lib/jep_common.o lib/jep_writer.o lib/jep_reader.o
-bin/test_interp   : lib/jep_common.o lib/jep_reader.o
-bin/test_ascii    : lib/jep_common.o lib/jep_reader.o
-bin/test_profile  : lib/jep_profile.o
-bin/write_data    : lib/jep_common.o lib/jep_writer.o lib/mod_constant.o lib/mod_terms.o
+bin/test_write    	: lib/jep_common.o lib/jep_writer.o lib/jep_reader.o
+bin/test_interp   	: lib/jep_common.o lib/jep_reader.o
+bin/test_ascii    	: lib/jep_common.o lib/jep_reader.o
+bin/test_profile  	: lib/jep_profile.o
+bin/write_data    	: lib/jep_common.o lib/jep_writer.o lib/mod_constant.o lib/mod_terms.o
+bin/test_statistics : lib/jep_common.o lib/jep_reader.o lib/jep_statistics.o lib/jep_profile.o
 
 clean:
 	rm -rf bin lib/jep_* lib/test_* lib/write_*

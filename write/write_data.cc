@@ -47,9 +47,9 @@ int main(int argc, char** argv)
   LHAPDF::PDF* pdf = LHAPDF::mkPDF("CT10nnlo",0);
 
   jep::header head;
-  head.r_num  = 91;
+  head.r_num  = 10;
   head.r_min  = 0.1;
-  head.r_step = 0.01;
+  head.r_step = 0.1;
   head.E_num  = 100;
   head.E_min  = 10;
   head.E_step = 10;
