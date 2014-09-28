@@ -1,5 +1,6 @@
-#include <iostream>
 #include <vector>
+#include <iostream>
+#include <iomanip>
 
 #include <TROOT.h>
 #include <TFile.h>
@@ -7,7 +8,7 @@
 
 #include <fastjet/ClusterSequence.hh>
 
-#include "jep/profile.h"
+#include "jep/jet_alg.h"
 
 #define test(var) \
   cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << endl;
@@ -118,6 +119,11 @@ int main(int argc, char *argv[]){
   tree->SetBranchStatus("GenParticle.Py",1);
   tree->SetBranchStatus("GenParticle.Pz",1);
 
+  tree->SetBranchStatus("GenParticle.M1",1);
+  tree->SetBranchStatus("GenParticle.M2",1);
+  tree->SetBranchStatus("GenParticle.D1",1);
+  tree->SetBranchStatus("GenParticle.D2",1);
+
   // ****************************************************************
   // Loop over input root file entries
   // ****************************************************************
@@ -129,7 +135,23 @@ int main(int argc, char *argv[]){
     // Collect Final State particles
     vector<PseudoJet> particles; // unclustered final state particles
 
+    // store info about shower to pass to FastJet
+    jep::shower_info::init(GenParticle_);
+
     for (Int_t i=0; i<GenParticle_; ++i) {
+/*      cout << setw(4) << i << ' '
+           << setw(6) << GenParticle_PID[i] << ' '
+           << setw(4) << GenParticle_M1[i] << ' '
+           << setw(4) << GenParticle_M2[i] << ' '
+           << setw(4) << GenParticle_D1[i] << ' '
+           << setw(4) << GenParticle_D2[i] << endl;
+*/
+
+      jep::shower_info *user_info =
+      jep::shower_info::add(GenParticle_PID[i], GenParticle_Status[i],
+                            GenParticle_M1[i], GenParticle_M2[i],
+                            GenParticle_D1[i], GenParticle_D2[i]);
+
       // skip if not final state particle
       if ( GenParticle_Status[i] != 1 ) continue;
 
@@ -137,6 +159,7 @@ int main(int argc, char *argv[]){
         GenParticle_Px[i],GenParticle_Py[i],GenParticle_Pz[i],GenParticle_E[i]
       );
       jet.set_user_index(GenParticle_PID[i]);
+      jet.set_user_info (user_info);
       particles.push_back( jet );
     }
 
@@ -146,18 +169,22 @@ int main(int argc, char *argv[]){
     // Sort jets by Pt
     vector<PseudoJet> jets = sorted_by_pt(cs.inclusive_jets());
 
-    for (unsigned char i=0; i<5; ++i)
-      cout << "Jet "<<(int)i<<": Et = " << jets[i].Et() << endl;
+    for (size_t i=0; i<5; ++i)
+      cout << "Jet "<<(int)i<<": Et = " << jets[i].Et()
+           << " origin: " << jep::origin(jets[i])->pid()
+           << endl << endl;
     cout << endl;
 
-    vector<double> prof = jep::profile(&jets[0], 0.4, 0.025, 13);
+    vector<double> prof = jep::profile(jets.front(), 0.4, 0.025, 13);
 //    vector<double> prof = jep::profile(&jets[0], 1.0, 0.1, 10);
 
-    cout << "r\tE" << endl;
-    for (unsigned char i=0; i<13; ++i) {
-      cout << 0.1+i*0.025 << '\t' << prof[i] << endl;
+    cout <<left<<setw(5)<<'r'<<"  "<<'E'<< endl;
+    for (size_t i=0; i<13; ++i) {
+      cout << setw(5) << 0.1+i*0.025 << "  " << setw(7) << prof[i] << endl;
 //      cout << 0.1+i*0.1 << '\t' << prof[i] << endl;
     }
+
+    jep::shower_info::clear();
 
     break;
   }

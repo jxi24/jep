@@ -42,9 +42,9 @@ lib/jep_common.o lib/jep_writer.o lib/jep_reader.o: lib/jep_%.o: jep/%.cc jep/%.
 	@$(CPP) $(CFLAGS) -c $(filter %.cc,$^) -o $@
 
 # fastjet interface
-lib/jep_profile.o: lib/jep_%.o: jep/%.cc jep/%.h
+lib/jep_jet_alg.o: lib/jep_%.o: jep/%.cc jep/%.h
 	@echo -e "Compiling \E[0;49;96m"$@"\E[0;0m ... "
-	@$(CPP) $(CFLAGS) -c $(filter %.cc,$^) -o $@
+	@$(CPP) $(CFLAGS) $(FJ_CFLAGS) -c $(filter %.cc,$^) -o $@
 
 # fortran object rule
 lib/%.o: write/%.f90
@@ -79,7 +79,7 @@ bin/test_plot: bin/%: lib/%.o
 
 bin/test_profile: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
-	@$(CPP) $(filter %.o,$^) -o $@ $(ROOT_LIBS) $(FJ_LIBS)
+	@$(CPP) -Wl,--no-as-needed $(filter %.o,$^) -o $@ $(ROOT_LIBS) $(FJ_LIBS)
 
 bin/write_data: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
@@ -94,7 +94,7 @@ lib/jep_profile.o : jep/exception.h
 lib/test_write.o  : jep/common.h jep/writer.h jep/reader.h
 lib/test_interp.o : jep/common.h jep/reader.h
 lib/test_ascii.o  : jep/common.h jep/reader.h
-lib/test_profile.o: jep/profile.h
+lib/test_profile.o: jep/jet_alg.h
 lib/write_data.o  : jep/common.h jep/writer.h
 
 # EXE dependencies
@@ -102,7 +102,7 @@ bin/test_write    : lib/jep_common.o lib/jep_writer.o lib/jep_reader.o
 bin/test_interp   : lib/jep_common.o lib/jep_reader.o
 bin/test_ascii    : lib/jep_common.o lib/jep_reader.o
 bin/test_plot     : lib/jep_common.o lib/jep_reader.o
-bin/test_profile  : lib/jep_profile.o
+bin/test_profile  : lib/jep_jet_alg.o
 bin/write_data    : lib/jep_common.o lib/jep_writer.o lib/mod_constant.o lib/mod_terms.o
 
 clean:
@@ -114,4 +114,4 @@ deepclean:
 backup:
 	@echo -e "Creating \E[0;49;93m"$(BAK)"\E[0;0m"
 	@mkdir -p BAK
-	@tar cvzfh $(BAK) Makefile jep test write
+	@tar cvzfh $(BAK) README Makefile jep test write scripts
