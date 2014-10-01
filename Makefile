@@ -20,9 +20,10 @@ FFLAGS := -ffixed-line-length-none -fno-automatic -O2
 CERN_LIB := -lmathlib
 #CERN_LIB := -L/usr/lib64/cernlib/2006-g77/lib -lmathlib
 
-LHAPDF_CONFIG := /work/raida/isaacs21/LHAPDF/LHAPDF6/bin/lhapdf-config
-LHAPDF_FLAGS := $(shell $(LHAPDF_CONFIG) --cppflags)
-LHAPDF_LIBS  := $(shell $(LHAPDF_CONFIG) --ldflags)
+LHAPDF_INSTALL := /work/raida/isaacs21/LHAPDF/LHAPDF6
+LHAPDF_CONFIG  := $(LHAPDF_INSTALL)/bin/lhapdf-config
+LHAPDF_FLAGS   := $(shell $(LHAPDF_CONFIG) --cppflags)
+LHAPDF_LIBS    := -Wl,-rpath=$(LHAPDF_INSTALL)/lib $(shell $(LHAPDF_CONFIG) --ldflags)
 
 .PHONY: all clean backup
 
@@ -45,6 +46,11 @@ lib/jep_common.o lib/jep_writer.o lib/jep_reader.o: lib/jep_%.o: jep/%.cc jep/%.
 lib/jep_jet_alg.o: lib/jep_%.o: jep/%.cc jep/%.h
 	@echo -e "Compiling \E[0;49;96m"$@"\E[0;0m ... "
 	@$(CPP) $(CFLAGS) $(FJ_CFLAGS) -c $(filter %.cc,$^) -o $@
+
+# fastjet interface
+lib/jep_shower_graph_boost.o: lib/jep_%.o: jep/%.cc jep/%.h
+	@echo -e "Compiling \E[0;49;96m"$@"\E[0;0m ... "
+	@$(CPP) $(CFLAGS) -c $(filter %.cc,$^) -o $@ -lboost_graph
 
 # fortran object rule
 lib/%.o: write/%.f90
@@ -88,13 +94,13 @@ bin/write_data: bin/%: lib/%.o
 # OBJ dependencies
 lib/jep_writer.o  : jep/common.h jep/exception.h
 lib/jep_reader.o  : jep/common.h jep/exception.h
-lib/jep_profile.o : jep/exception.h
+lib/jep_jet_alg.o : jep/exception.h jep/shower_graph_boost.h
 
 # EXE_OBJ dependencies
 lib/test_write.o  : jep/common.h jep/writer.h jep/reader.h
 lib/test_interp.o : jep/common.h jep/reader.h
 lib/test_ascii.o  : jep/common.h jep/reader.h
-lib/test_profile.o: jep/jet_alg.h
+lib/test_profile.o: jep/jet_alg.h jep/shower_graph_boost.h
 lib/write_data.o  : jep/common.h jep/writer.h
 
 # EXE dependencies
@@ -102,7 +108,7 @@ bin/test_write    : lib/jep_common.o lib/jep_writer.o lib/jep_reader.o
 bin/test_interp   : lib/jep_common.o lib/jep_reader.o
 bin/test_ascii    : lib/jep_common.o lib/jep_reader.o
 bin/test_plot     : lib/jep_common.o lib/jep_reader.o
-bin/test_profile  : lib/jep_jet_alg.o
+bin/test_profile  : lib/jep_jet_alg.o lib/jep_shower_graph_boost.o
 bin/write_data    : lib/jep_common.o lib/jep_writer.o lib/mod_constant.o lib/mod_terms.o
 
 clean:

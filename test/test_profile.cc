@@ -184,6 +184,7 @@ int main(int argc, char *argv[]){
 //      cout << 0.1+i*0.1 << '\t' << prof[i] << endl;
     }
 
+    jep::shower_info::draw("jet.dot");
     jep::shower_info::clear();
 
     break;
