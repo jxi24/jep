@@ -9,6 +9,7 @@
 #include <fastjet/ClusterSequence.hh>
 
 #include "jep/jet_alg.h"
+#include "jep/shower_graph_dot.h"
 
 #define test(var) \
   cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << endl;
@@ -155,12 +156,12 @@ int main(int argc, char *argv[]){
       // skip if not final state particle
       if ( GenParticle_Status[i] != 1 ) continue;
 
-      PseudoJet jet(
+      PseudoJet particle(
         GenParticle_Px[i],GenParticle_Py[i],GenParticle_Pz[i],GenParticle_E[i]
       );
-      jet.set_user_index(GenParticle_PID[i]);
-      jet.set_user_info (user_info);
-      particles.push_back( jet );
+      particle.set_user_index(i);
+      particle.set_user_info (user_info);
+      particles.push_back( particle );
     }
 
     // AntiKt4 Clustering Algorithm
@@ -184,7 +185,28 @@ int main(int argc, char *argv[]){
 //      cout << 0.1+i*0.1 << '\t' << prof[i] << endl;
     }
 
-    jep::shower_info::draw("jet.dot");
+    // Draw shower graph
+    shower_graph_dot g;
+
+    for (Int_t i=0; i<GenParticle_; ++i) {
+      g.add_vertex(i,GenParticle_PID[i],GenParticle_Status[i]);
+
+      Int_t mothers[2] = { GenParticle_M1[i], GenParticle_M2[i] };
+      for (short j=0;j<2;++j)
+        if (mothers[j]!=-1) g.add_edge(mothers[j],i);
+    }
+
+    g.add_vertex(999999,0,0);
+    const vector<PseudoJet> constituents
+      = sorted_by_pt(jets.front().constituents());
+
+    for (size_t i=0, size=constituents.size(); i<size; ++i) {
+      g.add_edge(constituents[i].user_index(),999999);
+    }
+
+    g.save("jet.gv");
+
+    // clear shower info for the event
     jep::shower_info::clear();
 
     break;

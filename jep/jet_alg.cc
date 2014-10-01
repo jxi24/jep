@@ -3,7 +3,6 @@
 #include <iostream>
 
 #include "jep/exception.h"
-#include "jep/shower_graph_boost.h"
 
 #define test(var) \
   std::cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << std::endl;
@@ -90,7 +89,7 @@ const shower_info* origin(const PseudoJet& jet, unsigned short num_parts)
       constituents[i].user_info_ptr()
     ) );
 
-    test(constituents[i].Et())
+    //test(constituents[i].Et())
   }
 
 
@@ -190,21 +189,6 @@ const shower_info* shower_info::d1() const {
 const shower_info* shower_info::d2() const {
   if (d2_ == -1) return NULL;
   return infos[d2_];
-}
-
-// Draw shower tree diagram from shower_info
-
-void shower_info::draw(const char* fname)
-{
-  shower_graph_boost g(size);
-
-  for (unsigned short i=0; i<size; ++i) {
-    const shower_info* mothers[2] = { infos[i]->m1(), infos[i]->m2() };
-    for (short j=0;j<2;++j)
-      if (mothers[j]) g.add_edge(mothers[j]->id(),infos[i]->id());
-  }
-
-  g.save_dot(fname);
 }
 
 } // end jep namespace
