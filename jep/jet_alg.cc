@@ -2,6 +2,8 @@
 
 #include <iostream>
 
+#include "TGraphStruct.h"
+
 #include "jep/exception.h"
 
 #define test(var) \
@@ -189,6 +191,15 @@ const shower_info* shower_info::d1() const {
 const shower_info* shower_info::d2() const {
   if (d2_ == -1) return NULL;
   return infos[d2_];
+}
+
+// Draw shower tree diagram from shower_info
+
+void shower_info::draw(const char* fname)
+{
+  TGraphStruct *gs = new TGraphStruct();
+
+  
 }
 
 } // end jep namespace

@@ -45,6 +45,8 @@ public:
   static shower_info* add(short pid, short status,
     short m1, short m2, short d1, short d2);
 
+  static void draw(const char* fname);
+
 };
 
 // function to get jet particle of origin
