@@ -2,14 +2,23 @@
 
 #include <string>
 #include <fstream>
+#include <iomanip>
 #include <map>
+#include <cmath>
+//#include <exception>
 
 using namespace std;
 
 struct particle {
   int i, pid, status;
-  particle(int i, int pid, int status) : i(i), pid(pid), status(status) { }
+  float E;
+  vector<particle*> daughters;
+  particle(int i, int pid, int status, float E) : i(i), pid(pid), status(status), E(E) { }
 };
+
+bool sort_by_E(particle* i, particle* j) {
+  return ( i->E < j->E );
+}
 
 ofstream& operator<<(ofstream& f, const particle& v) {
   f << v.i << " [label=\"";
@@ -115,15 +124,16 @@ struct edge {
   edge(int from, int to) : from(from), to(to) { }
 };
 
-ofstream& operator<<(ofstream& f, const edge& e) {
+/*ofstream& operator<<(ofstream& f, const edge& e) {
   f << e.from << "->" << e.to << " [penwidth=1];";
   return f;
-}
+}*/
 
-struct shower_graph_dot::_graph_impl {
+struct _graph_impl {
   vector<particle> particles;
   vector<edge> edges;
   map<string, vector<int> > jets;
+  map<int, particle*> p_map;
 
   _graph_impl() { }
   virtual ~_graph_impl() { }
@@ -137,17 +147,30 @@ shower_graph_dot::~shower_graph_dot() {
   delete graph;
 }
 
-void shower_graph_dot::add_particle(int i, int pid, int status) {
-  graph->particles.push_back(particle(i, pid, status));
+void shower_graph_dot::add_particle(int i, int pid, int status, float E) {
+  graph->particles.push_back(particle(i, pid, status, E));
+  graph->p_map[i] = &graph->particles.back();
 }
 void shower_graph_dot::add_edge(int from, int to) {
+  map<int, particle*>::iterator from_it = graph->p_map.find(from),
+                                to_it   = graph->p_map.find(to),
+                                end_it  = graph->p_map.find(end);
+
+  if ( from_it==end_it || to_it==end_it ) {
+    throw runtime_error("Edge connecting to undefined vertex");
+  } else { // OK
+    graph->edges.push_back(edge(from,to));
+    graph->p_map[from]->daughters.push_back(graph->p_map[to]);
+  }
+
   graph->edges.push_back(edge(from,to));
 }
 void shower_graph_dot::add_jet(const char* name, const vector<int>& particles) {
   graph->jets[name] = particles;
 }
 
-typedef vector<particle>::iterator particle_iter;
+typedef vector<particle >::iterator particle_iter;
+typedef vector<particle*>::iterator daughter_iter;
 typedef vector<edge>::iterator edge_iter;
 typedef map<string, vector<int> >::iterator jet_iter;
 
@@ -157,9 +180,11 @@ void shower_graph_dot::save(const char* filename) const {
 
   f << "ratio=\"0.6\"" << endl;
 
+  // Write particle nodes
   for (particle_iter it=graph->particles.begin(), end=graph->particles.end();
        it!=end; ++it) f << (*it) << endl;
 
+  // Write jet nodes
   for (jet_iter it=graph->jets.begin(), end=graph->jets.end();
        it!=end; ++it)
   {
@@ -168,16 +193,44 @@ void shower_graph_dot::save(const char* filename) const {
       << endl;
   }
 
-  for (edge_iter it=graph->edges.begin(), end=graph->edges.end();
-       it!=end; ++it) f << (*it) << endl;
+  // Calculate edge widths
+  for (particle_iter p=graph->particles.begin(), pend=graph->particles.end();
+       p!=pend; ++p)
+  {
+    daughter_iter dbegin = p->daughters.begin();
+    daughter_iter dend = p->daughters.end();
+    daughter_iter d5 = dbegin+5;
 
+    sort(dbegin, dend, sort_by_E);
+
+    for (daughter_iter d=dbegin; d!=dbegin+5; ++d) {
+      f << it->from << "->" << it->to << " [penwidth=";
+    }
+  }
+
+  // Write particle edges
+  for (edge_iter it=graph->edges.begin(), end=graph->edges.end();
+       it!=end; ++it)
+  {
+    f << it->from << "->" << it->to << " [penwidth=";
+
+    /*float weight = 10. * graph->p_map[it->to]->E / graph->p_map[it->from]->E;
+    if (!isnormal(weight) || weight < 1.) f << '1';
+    else f << setprecision(3) << weight;*/
+
+    std::sort(myvector.begin(), myvector.begin()+4);
+
+    f << "];" << endl;
+  }
+
+  // Write jet edges
   for (jet_iter it=graph->jets.begin(), end=graph->jets.end();
        it!=end; ++it)
   {
     const vector<int>& p = it->second;
     for (size_t i=0, size=p.size(); i<size; ++i)
     {
-      f << p[i] << "->\"" << it->first <<"\" [penwidth=4];"<< endl;
+      f << p[i] << "->\"" << it->first <<"\" [penwidth=10];"<< endl;
     }
   }
 
