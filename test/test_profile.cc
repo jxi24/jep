@@ -1,6 +1,7 @@
 #include <vector>
 #include <iostream>
 #include <iomanip>
+#include <sstream>
 
 #include <TROOT.h>
 #include <TFile.h>
@@ -19,8 +20,8 @@ using namespace std;
 
 int main(int argc, char *argv[]){
 
-  if ( argc!=2 ) {
-    cout << "Usage: "<<argv[0]<<" file.root" << endl;
+  if ( argc!=3 ) {
+    cout << "Usage: "<<argv[0]<<" event file.root" << endl;
     exit(0);
   }
 
@@ -28,7 +29,7 @@ int main(int argc, char *argv[]){
   // Reading input root file argv[1] with tree STDHEP
   // ****************************************************************
 
-  TFile *file = new TFile(argv[1],"READ");
+  TFile *file = new TFile(argv[2],"READ");
   TTree *tree = (TTree*)file->Get("STDHEP");
 
   const Int_t kMaxEvent = 1;
@@ -129,9 +130,11 @@ int main(int argc, char *argv[]){
   // Loop over input root file entries
   // ****************************************************************
 
-  const Long64_t nEnt = tree->GetEntriesFast();
-  for (Long64_t ent=0; ent<nEnt; ++ent) {
-    tree->GetEntry(ent);
+//  const Long64_t nEnt = tree->GetEntriesFast();
+//  for (Long64_t ent=2; ent<nEnt; ++ent) {
+//    tree->GetEntry(ent);
+  {
+    tree->GetEntry(atoi(argv[1]));
 
     // Collect Final State particles
     vector<PseudoJet> particles; // unclustered final state particles
@@ -189,19 +192,24 @@ int main(int argc, char *argv[]){
     shower_graph_dot g;
 
     for (Int_t i=0; i<GenParticle_; ++i) {
-      g.add_vertex(i,GenParticle_PID[i],GenParticle_Status[i]);
+      g.add_particle(i,GenParticle_PID[i],GenParticle_Status[i]);
 
       Int_t mothers[2] = { GenParticle_M1[i], GenParticle_M2[i] };
       for (short j=0;j<2;++j)
         if (mothers[j]!=-1) g.add_edge(mothers[j],i);
     }
 
-    g.add_vertex(999999,0,0);
-    const vector<PseudoJet> constituents
-      = sorted_by_pt(jets.front().constituents());
+    for (size_t j=0, size=min(jets.size(),5lu); j<size; ++j) {
+      vector<int> jet_particles;
+      const vector<PseudoJet> constituents
+        = sorted_by_pt(jets[j].constituents());
 
-    for (size_t i=0, size=constituents.size(); i<size; ++i) {
-      g.add_edge(constituents[i].user_index(),999999);
+      for (size_t i=0, size=constituents.size(); i<size; ++i)
+        jet_particles.push_back(constituents[i].user_index());
+
+      stringstream ss;
+      ss << "Jet " << j+1;
+      g.add_jet(ss.str().c_str(),jet_particles);
     }
 
     g.save("jet.gv");
@@ -209,7 +217,6 @@ int main(int argc, char *argv[]){
     // clear shower info for the event
     jep::shower_info::clear();
 
-    break;
   }
 
   file->Close();
