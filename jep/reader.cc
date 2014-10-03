@@ -128,8 +128,11 @@ void reader::to_ascii(const char* filename) const {
 #define interp_n 4 // number of inteprolation points
 std::vector<val_t> reader::psi(val_t E) const {
 
-  if ( E<head.E_min || head.E_max()<E )
-    throw ERROR << "Energy E="<<E<<" is outside of range";
+  if ( E<head.E_min )
+    throw ERROR << "Jet is too soft for profiling. No data for E="<<E;
+
+  if ( E>head.E_max() )
+    throw ERROR << "Jet is too hard for profiling. No data for E="<<E;
 
   num_t iE = (E-head.E_min)/head.E_step;
 

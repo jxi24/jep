@@ -19,7 +19,8 @@ namespace jep {
 // ********************************************************
 vector<double>
 profile(const PseudoJet& jet,
-        double r_max, double r_step, unsigned short r_num)
+        double r_max, double r_step, unsigned short r_num,
+        bool& good, bool warn)
 {
   if (!jet.has_constituents()) // if no constituents
     throw ERROR << "Jet has no constituents";
