@@ -1,6 +1,7 @@
 #include "jep/jet_alg.h"
 
 #include <iostream>
+#include <algorithm>
 
 #include "jep/exception.h"
 
@@ -20,10 +21,13 @@ namespace jep {
 vector<double>
 profile(const PseudoJet& jet,
         double r_max, double r_step, unsigned short r_num,
-        bool& good, bool warn)
+        bool& within_cone, double tolerance, bool warn)
 {
   if (!jet.has_constituents()) // if no constituents
     throw ERROR << "Jet has no constituents";
+
+  // Does jet have no constituents outside r_max
+  within_cone = true;
 
   // get jet constituents ( returns object, not reference )
   const vector<PseudoJet> constituents = jet.constituents();
@@ -41,7 +45,7 @@ profile(const PseudoJet& jet,
   for ( vector<PseudoJet>::const_iterator it = constituents.begin();
         it != constituents.end(); ++it )
   {
-    cr = jet.delta_R(*it); // get constituent radius
+    cr = it->delta_R(jet); // get constituent radius
     Et = it->Et(); // get constituent transverse energy
     pr = r_max; // reset profile radius
 
@@ -49,14 +53,23 @@ profile(const PseudoJet& jet,
     unsigned short i;
     for (i = r_num-1;; --i) {
       if (cr<=pr) E_[i] += Et;
-      else break;
+      else {
+        if (r_num-i==1) { // constituent is outside of jet
+          if ( (cr-r_max)/r_max > tolerance ) { // constituent is outside of tolerance
+            within_cone = false;
+            if (warn)
+              cerr << "<jep::"<<__func__<<':'<<__LINE__
+                   << ">: Jet has a constituent outside r_max="
+                   << r_max << ", with r=" << cr << endl;
+          } else E_[i] += Et; // within tolerance
+        }
+        break;
+      }
 
       if (i==0) break;
       pr -= r_step;
     }
 
-    if (i==r_num-1)
-      throw ERROR << "Jet has a constituents outside r_max";
   }
 
   return E_;

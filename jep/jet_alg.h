@@ -11,7 +11,8 @@ namespace jep {
 // ********************************************************
 std::vector<double>
 profile(const fastjet::PseudoJet& jet,
-        double r_max, double r_step, unsigned short r_num);
+        double r_max, double r_step, unsigned short r_num,
+        bool& within_cone, double tolerance=0.01, bool warn=true);
 
 // class derived from fastjet::PseudoJet::UserInfoBase
 // for tracking particle evolution within the event shower

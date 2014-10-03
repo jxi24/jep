@@ -161,7 +161,8 @@ int main(int argc, char *argv[]){
     
         for(unsigned char k=0; k < 5; k++){
         //    vector<double> prof = jep::profile(jets[0], 0.4, 0.025, 13);
-            vector<double> prof = jep::profile(jets[k], 1.0, 0.1, 10);
+            bool within_cone = true;
+            vector<double> prof = jep::profile(jets[k], 1.0, 0.1, 10, within_cone);
         
       //      cout << "r\tE" << endl;
             for (unsigned char i=0; i<10; ++i) {

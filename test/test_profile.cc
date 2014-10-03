@@ -20,7 +20,7 @@ using namespace std;
 int main(int argc, char *argv[]){
 
   if ( argc!=3 ) {
-    cout << "Usage: "<<argv[0]<<" file.root" << endl;
+    cout << "Usage: "<<argv[0]<<" file.root num_jet_lead_cons" << endl;
     exit(0);
   }
 
@@ -164,7 +164,7 @@ int main(int argc, char *argv[]){
     }
 
     // AntiKt4 Clustering Algorithm
-    ClusterSequence cs(particles, JetDefinition(antikt_algorithm, 0.4) );
+    ClusterSequence cs(particles, JetDefinition(antikt_algorithm, 0.7) );
 
     // Sort jets by Pt
     vector<PseudoJet> jets = sorted_by_pt(cs.inclusive_jets());
