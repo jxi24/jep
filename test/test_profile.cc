@@ -20,7 +20,7 @@ using namespace std;
 int main(int argc, char *argv[]){
 
   if ( argc!=3 ) {
-    cout << "Usage: "<<argv[0]<<" file.root" << endl;
+    cout << "Usage: "<<argv[0]<<" file.root num_jet_lead_cons" << endl;
     exit(0);
   }
 

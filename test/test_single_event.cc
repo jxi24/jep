@@ -183,10 +183,11 @@ int main(int argc, char *argv[]){
 
       // Print jet profile
       if (good) {
-        vector<double> prof = jep::profile(jets[i], 0.7, 0.1, 6);
+        bool within_cone = true;
+        vector<double> prof = jep::profile(jets[i], 0.7, 0.1, 7, within_cone);
 
         cout <<left<<setw(5)<<'r'<<"  "<<'E'<< endl;
-        for (size_t i=0; i<6; ++i) {
+        for (size_t i=0; i<7; ++i) {
           cout << setw(5) << 0.1+i*0.1 << "  "
                << setw(7) << prof[i] << endl;
         }

@@ -173,7 +173,8 @@ int main(int argc, char *argv[]){
             if(jets[k].Et() < 100) continue;
             jep::jet_validator jv(jets[k],5);
             bool good = jv.is_from_higgs_bb();
-            vector<double> prof = jep::profile(jets[k], 1.0, 0.1, 10);
+            bool within_cone = true;
+            vector<double> prof = jep::profile(jets[k], 1.0, 0.1, 10, within_cone, 0.3,false);
         
             for (unsigned char i=0; i<10; ++i) {
               prof[i] = prof[i]/prof[prof.size()-1];
