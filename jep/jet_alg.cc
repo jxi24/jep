@@ -90,7 +90,7 @@ jet_validator::jet_validator(const PseudoJet& jet, unsigned short nlead)
       constituents[i].user_info_ptr()
     );
 
-    cout << lead[i]->id() << "  " << constituents[i].Et() << endl;
+    //cout << lead[i]->id() << "  " << constituents[i].Et() << endl;
   }
 }
 

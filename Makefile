@@ -28,7 +28,7 @@ LHAPDF_LIBS    := -Wl,-rpath=$(LHAPDF_INSTALL)/lib $(shell $(LHAPDF_CONFIG) --ld
 .PHONY: all clean backup
 
 EXE := bin/test_write bin/test_ascii bin/test_interp \
-       bin/test_plot bin/test_profile \
+       bin/test_plot bin/test_single_event bin/test_profile \
        bin/write_data
 
 all: $(DIRS) $(EXE)
@@ -70,7 +70,7 @@ lib/test_plot.o: lib/%.o: test/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m ... "
 	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) -c $(filter %.cc,$^) -o $@
 
-lib/test_profile.o: lib/%.o: test/%.cc
+lib/test_single_event.o lib/test_profile.o: lib/%.o: test/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m ... "
 	@$(CPP) $(CFLAGS) $(FJ_CFLAGS) $(ROOT_CFLAGS) -c $(filter %.cc,$^) -o $@
 
@@ -87,7 +87,7 @@ bin/test_plot: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
 	@$(CPP) $(filter %.o,$^) -o $@ $(ROOT_LIBS)
 
-bin/test_profile: bin/%: lib/%.o
+bin/test_single_event bin/test_profile: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
 	@$(CPP) -Wl,--no-as-needed $(filter %.o,$^) -o $@ $(ROOT_LIBS) $(FJ_LIBS)
 
@@ -104,7 +104,8 @@ lib/jep_jet_alg.o : jep/exception.h
 lib/test_write.o  : jep/common.h jep/writer.h jep/reader.h
 lib/test_interp.o : jep/common.h jep/reader.h
 lib/test_ascii.o  : jep/common.h jep/reader.h
-lib/test_profile.o: jep/jet_alg.h shower/graph_dot.h
+lib/test_single_event.o: jep/jet_alg.h shower/graph_dot.h
+lib/test_profile.o: jep/jet_alg.h
 lib/write_data.o  : jep/common.h jep/writer.h
 
 # EXE dependencies
@@ -112,7 +113,8 @@ bin/test_write    : lib/jep_common.o lib/jep_writer.o lib/jep_reader.o
 bin/test_interp   : lib/jep_common.o lib/jep_reader.o
 bin/test_ascii    : lib/jep_common.o lib/jep_reader.o
 bin/test_plot     : lib/jep_common.o lib/jep_reader.o
-bin/test_profile  : lib/jep_jet_alg.o lib/shower_graph_dot.o
+bin/test_single_event: lib/jep_jet_alg.o lib/shower_graph_dot.o
+bin/test_profile  : lib/jep_jet_alg.o
 bin/write_data    : lib/jep_common.o lib/jep_writer.o lib/mod_constant.o lib/mod_terms.o
 
 clean:

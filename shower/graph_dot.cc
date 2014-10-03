@@ -27,7 +27,7 @@ bool sort_by_E(particle* i, particle* j) {
 
 ofstream& operator<<(ofstream& f, const particle& v) {
   f << v.i << " [label=\"";
-  f << v.i << ':';
+  //f << v.i << ':'; // prepend particle shower index
   switch (v.pid) {
     case     1: f << 'd';        break;
     case     2: f << 'u';        break;
