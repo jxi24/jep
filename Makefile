@@ -124,4 +124,4 @@ deepclean:
 backup:
 	@echo -e "Creating \E[0;49;93m"$(BAK)"\E[0;0m"
 	@mkdir -p BAK
-	@tar cvzfh $(BAK) README Makefile jep test write scripts
+	@tar cvzfh $(BAK) README Makefile jep write shower test scripts
