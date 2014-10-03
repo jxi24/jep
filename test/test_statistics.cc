@@ -1,5 +1,6 @@
 #include <iostream>
 #include <vector>
+#include <iomanip>
 
 #include <TROOT.h>
 #include <TFile.h>
@@ -130,11 +131,11 @@ int main(int argc, char *argv[]){
   // ****************************************************************
 
   const Long64_t nEnt = tree->GetEntriesFast();
-  int gluon_chi2 = 0;
-  int gluon_dchi2 = 0;
-  int gluon_log = 0;
-  int gluon_dlog = 0;
-  int nHiggs = 0;
+  int chi2[3] = {0};
+  int dchi2[3] = {0};
+  int log[3] = {0};
+  int dlog[3] = {0};
+  int nHiggs = 0, nGluon = 0, nQuark = 0;
   for (Long64_t ent=0; ent<nEnt; ++ent) {
     try{
         tree->GetEntry(ent);
@@ -186,19 +187,52 @@ int main(int argc, char *argv[]){
             }
             for(int j=1; j<5; j++){
                 vector<val_t> stats = statistics(j, prof, jets[k].Et(), 1.0);
-                if(stats[2] < stats[1] && stats[2] < stats[0]) {
+                // Gluon is best
+                if(stats[0] < stats[1] && stats[0] < stats[2]) {
                     switch (j) {
                         case 1:
-                            gluon_chi2++;
+                            chi2[0]++;
                             break;
                         case 2:
-                            gluon_dchi2++;
+                            dchi2[0]++;
                             break;
                         case 3:
-                            gluon_log++;
+                            log[0]++;
                             break;
                         case 4:
-                            gluon_dlog++;
+                            dlog[0]++;
+                            break;
+                    }
+                // Quark is best
+                } else if(stats[1] < stats[0] && stats[1] < stats[2]) {
+                    switch (j) {
+                        case 1:
+                            chi2[1]++;
+                            break;
+                        case 2:
+                            dchi2[1]++;
+                            break;
+                        case 3:
+                            log[1]++;
+                            break;
+                        case 4:
+                            dlog[1]++;
+                            break;
+                    }
+                // Higgs is best
+                } else if(stats[2] < stats[1] && stats[2] < stats[0]) {
+                    switch (j) {
+                        case 1:
+                            chi2[2]++;
+                            break;
+                        case 2:
+                            dchi2[2]++;
+                            break;
+                        case 3:
+                            log[2]++;
+                            break;
+                        case 4:
+                            dlog[2]++;
                             break;
                     }
                 }
@@ -218,11 +252,15 @@ int main(int argc, char *argv[]){
     jep::shower_info::clear();
   }
 
-  cout << "chi^2: " << (double)gluon_chi2 << endl;
-  cout << "dchi^2: " << (double)gluon_dchi2 << endl;
-  cout << "log: " << (double)gluon_log << endl;
-  cout << "dlog: " << (double)gluon_dlog << endl;
-  cout << "Higgs: " << (double)nHiggs << endl; 
+  cout << "+-------------------------------------------+" << endl;
+  cout << "|" << setw(11) << "|" << setw(10) << "Gluon  " << "|" << setw(10) << "Quark  " << "|" << setw(10) << "Higgs  " << "|" << endl;
+  cout << "+-------------------------------------------+" << endl;
+  cout << "|" << setw(10) << "chi^2 " << "|" << setw(10) << chi2[0] << "|" << setw(10) << chi2[1] << "|" << setw(10) << chi2[2] << "|" << endl;
+  cout << "|" << setw(10) << "dchi^2 " <<"|" << setw(10) << dchi2[0] << "|" << setw(10) << dchi2[1] << "|" << setw(10) << dchi2[2] << "|" << endl;
+  cout << "|" << setw(10) << "log " << "|" << setw(10) << log[0] << "|" << setw(10) << log[1] << "|" << setw(10) << log[2] << "|" << endl;
+  cout << "|" << setw(10) << "dlog " << "|" << setw(10) << dlog[0] << "|" << setw(10) << dlog[1] << "|" << setw(10) << dlog[2] << "|" << endl;
+  cout << "|" << setw(10) << "valid " << "|" << setw(10) << nGluon << "|" << setw(10) << nQuark << "|" << setw(10) << nHiggs << "|" << endl;
+  cout << "+-------------------------------------------+" << endl << endl;
   cout << "exceptions: " << exception << endl;
 
   file->Close();
