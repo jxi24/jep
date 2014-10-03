@@ -51,6 +51,9 @@ struct header {
 
   val_t E_max() const;
   val_t r_max() const;
+
+  bool operator==(const header& rhs) const;
+  bool operator!=(const header& rhs) const;
 };
 
 }

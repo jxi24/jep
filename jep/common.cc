@@ -20,6 +20,21 @@ val_t header::r_max() const {
   return r_max;
 }
 
+bool header::operator==(const header& rhs) const {
+  if (E_num  != rhs.E_num ) return false;
+  if (E_min  != rhs.E_min ) return false;
+  if (E_step != rhs.E_step) return false;
+
+  if (r_num  != rhs.r_num ) return false;
+  if (r_min  != rhs.r_min ) return false;
+  if (r_step != rhs.r_step) return false;
+
+  return true;
+}
+bool header::operator!=(const header& rhs) const {
+  return (!operator==(rhs));
+}
+
 /*
 #define ERROR jepex(__func__,__LINE__,"particle_t")
 

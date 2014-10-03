@@ -7,7 +7,7 @@
 
 #include <fastjet/ClusterSequence.hh>
 
-#include "jep/profile.h"
+#include "jep/jet_alg.h"
 #include "jep/statistics.h"
 #include "jep/common.h"
 
@@ -160,8 +160,8 @@ int main(int argc, char *argv[]){
     //    cout << endl;
     
         for(unsigned char k=0; k < 5; k++){
-        //    vector<double> prof = jep::profile(&jets[0], 0.4, 0.025, 13);
-            vector<double> prof = jep::profile(&jets[k], 1.0, 0.1, 10);
+        //    vector<double> prof = jep::profile(jets[0], 0.4, 0.025, 13);
+            vector<double> prof = jep::profile(jets[k], 1.0, 0.1, 10);
         
       //      cout << "r\tE" << endl;
             for (unsigned char i=0; i<10; ++i) {
