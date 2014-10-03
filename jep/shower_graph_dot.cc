@@ -1,19 +1,24 @@
 #include "jep/shower_graph_dot.h"
 
 #include <string>
+#include <iostream>
 #include <fstream>
 #include <iomanip>
 #include <map>
 #include <cmath>
-//#include <exception>
+#include <algorithm>
+#include <stdexcept>
 
 using namespace std;
 
+#define nlead 5ul // number of leading constituents
+
 struct particle {
   int i, pid, status;
-  float E;
+  float E, frac;
   vector<particle*> daughters;
-  particle(int i, int pid, int status, float E) : i(i), pid(pid), status(status), E(E) { }
+  particle(int i, int pid, int status, float E)
+  : i(i), pid(pid), status(status), E(E), frac(1.) { }
 };
 
 bool sort_by_E(particle* i, particle* j) {
@@ -110,33 +115,29 @@ ofstream& operator<<(ofstream& f, const particle& v) {
 
   f<< "\", color=";
   switch (v.status) {
-    case  1: f << "green";  break;
-    case  2: f << "blue";   break;
-    case  3: f << "yellow"; break;
+    case  1: f << "green";  break; // final state
+    case  2: f << "blue";   break; // intermediate
+    case  3: f << "yellow"; break; // initial state
     default: f << "black";  break;
   }
   f << ", style=filled];";
   return f;
 }
 
-struct edge {
-  int from, to;
-  edge(int from, int to) : from(from), to(to) { }
-};
-
-/*ofstream& operator<<(ofstream& f, const edge& e) {
-  f << e.from << "->" << e.to << " [penwidth=1];";
-  return f;
-}*/
+typedef map<int, particle*>::iterator particle_iter;
+typedef vector<particle*>::iterator   daughter_iter;
+typedef map<string, vector<particle*> >::iterator jet_iter;
 
 struct _graph_impl {
-  vector<particle> particles;
-  vector<edge> edges;
-  map<string, vector<int> > jets;
-  map<int, particle*> p_map;
+  map<string, vector<particle*> > jets;
+  map<int, particle*> particles;
 
   _graph_impl() { }
-  virtual ~_graph_impl() { }
+  virtual ~_graph_impl() {
+    // deleted particles on the heap
+    for (particle_iter it=particles.begin(), end=particles.end();
+         it!=end; ++it) delete it->second;
+  }
 
 };
 
@@ -147,32 +148,39 @@ shower_graph_dot::~shower_graph_dot() {
   delete graph;
 }
 
-void shower_graph_dot::add_particle(int i, int pid, int status, float E) {
-  graph->particles.push_back(particle(i, pid, status, E));
-  graph->p_map[i] = &graph->particles.back();
+void shower_graph_dot::add_particle(int i, int pid, int status, float E)
+{
+  particle_iter this_it = graph->particles.find(i);
+  if ( this_it != graph->particles.end() ) {
+    cerr << "Warning: Overwriting particle " << i << endl;
+    delete this_it->second;
+  }
+
+  graph->particles[i] = new particle(i, pid, status, E);
 }
+
 void shower_graph_dot::add_edge(int from, int to) {
-  map<int, particle*>::iterator from_it = graph->p_map.find(from),
-                                to_it   = graph->p_map.find(to),
-                                end_it  = graph->p_map.find(end);
+  particle_iter from_it = graph->particles.find(from),
+                to_it   = graph->particles.find(to),
+                end_it  = graph->particles.end();
 
   if ( from_it==end_it || to_it==end_it ) {
     throw runtime_error("Edge connecting to undefined vertex");
-  } else { // OK
-    graph->edges.push_back(edge(from,to));
-    graph->p_map[from]->daughters.push_back(graph->p_map[to]);
+  } else { // OK -- add a daughter
+    from_it->second->daughters.push_back(to_it->second);
   }
-
-  graph->edges.push_back(edge(from,to));
 }
+
 void shower_graph_dot::add_jet(const char* name, const vector<int>& particles) {
-  graph->jets[name] = particles;
-}
+  const size_t size = particles.size();
 
-typedef vector<particle >::iterator particle_iter;
-typedef vector<particle*>::iterator daughter_iter;
-typedef vector<edge>::iterator edge_iter;
-typedef map<string, vector<int> >::iterator jet_iter;
+  vector<particle*> jet(size,NULL);
+  for (size_t i=0; i<size; ++i) jet[i] = graph->particles[particles[i]];
+
+  sort(jet.begin(), jet.end(), sort_by_E);
+
+  graph->jets[name] = jet;
+}
 
 void shower_graph_dot::save(const char* filename) const {
   ofstream f(filename);
@@ -182,7 +190,7 @@ void shower_graph_dot::save(const char* filename) const {
 
   // Write particle nodes
   for (particle_iter it=graph->particles.begin(), end=graph->particles.end();
-       it!=end; ++it) f << (*it) << endl;
+       it!=end; ++it) f << *it->second << endl;
 
   // Write jet nodes
   for (jet_iter it=graph->jets.begin(), end=graph->jets.end();
@@ -193,44 +201,71 @@ void shower_graph_dot::save(const char* filename) const {
       << endl;
   }
 
-  // Calculate edge widths
+  // Write particle edges
   for (particle_iter p=graph->particles.begin(), pend=graph->particles.end();
        p!=pend; ++p)
   {
-    daughter_iter dbegin = p->daughters.begin();
-    daughter_iter dend = p->daughters.end();
-    daughter_iter d5 = dbegin+5;
+    daughter_iter dbegin = p->second->daughters.begin();
+    daughter_iter dend   = p->second->daughters.end();
+
+    if (dend-dbegin==1) {
+      f << p->first << "->" << (*dbegin)->i << " [penwidth="
+        << p->second->frac << "];" << endl;
+      continue;
+    }
 
     sort(dbegin, dend, sort_by_E);
 
-    for (daughter_iter d=dbegin; d!=dbegin+5; ++d) {
-      f << it->from << "->" << it->to << " [penwidth=";
+    const size_t  dsize = p->second->daughters.size();
+    daughter_iter dlead = ( dsize<nlead ? dbegin+dsize : dbegin+nlead );
+    daughter_iter d = dbegin;
+
+    // Energy of leading constituents
+    float Elead = 0.;
+    for (; d<dlead; ++d) Elead += (*d)->E;
+
+    d = dbegin;
+
+    for (; d<dlead; ++d) {
+      float frac = (*d)->E*10./Elead;
+      if (frac<1.) frac = 1.;
+      (*d)->frac = frac;
+
+      f << p->first << "->" << (*d)->i << " [penwidth="
+        << frac << "];" << endl;
+    }
+
+    for (; d<dend; ++d) {
+      f << p->first << "->" << (*d)->i << " [penwidth=1];" << endl;
     }
   }
 
-  // Write particle edges
-  for (edge_iter it=graph->edges.begin(), end=graph->edges.end();
-       it!=end; ++it)
-  {
-    f << it->from << "->" << it->to << " [penwidth=";
-
-    /*float weight = 10. * graph->p_map[it->to]->E / graph->p_map[it->from]->E;
-    if (!isnormal(weight) || weight < 1.) f << '1';
-    else f << setprecision(3) << weight;*/
-
-    std::sort(myvector.begin(), myvector.begin()+4);
-
-    f << "];" << endl;
-  }
-
   // Write jet edges
-  for (jet_iter it=graph->jets.begin(), end=graph->jets.end();
-       it!=end; ++it)
+  for (jet_iter j=graph->jets.begin(), end=graph->jets.end();
+       j!=end; ++j)
   {
-    const vector<int>& p = it->second;
-    for (size_t i=0, size=p.size(); i<size; ++i)
-    {
-      f << p[i] << "->\"" << it->first <<"\" [penwidth=10];"<< endl;
+    const size_t  size  = j->second.size();
+    daughter_iter begin = j->second.begin();
+    daughter_iter lead  = ( size<nlead ? begin+size : begin+nlead );
+    daughter_iter pend  = j->second.end();
+    daughter_iter p     = j->second.begin();
+
+    // Energy of leading constituents
+    float Elead = 0.;
+    for (; p<lead; ++p) Elead += (*p)->E;
+
+    p = begin;
+
+    for (; p<lead; ++p) {
+      float frac = (*p)->E*20./Elead;
+      if (frac<1.) frac = 1.;
+
+      f << (*p)->i << "->\"" << j->first << "\" [penwidth="
+        << frac << ", color=brown];" << endl;
+    }
+
+    for (; p<pend; ++p) {
+      f << (*p)->i << "->\"" << j->first << "\" [penwidth=1];" << endl;
     }
   }
 
