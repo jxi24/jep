@@ -120,6 +120,7 @@ int main(int argc, char *argv[]){
   tree->SetBranchStatus("GenParticle.Px",1);
   tree->SetBranchStatus("GenParticle.Py",1);
   tree->SetBranchStatus("GenParticle.Pz",1);
+  tree->SetBranchStatus("GenParticle.PT",1);
 
   tree->SetBranchStatus("GenParticle.M1",1);
   tree->SetBranchStatus("GenParticle.M2",1);
@@ -192,7 +193,7 @@ int main(int argc, char *argv[]){
     shower_graph_dot g;
 
     for (Int_t i=0; i<GenParticle_; ++i) {
-      g.add_particle(i,GenParticle_PID[i],GenParticle_Status[i], GenParticle_E[i]);
+      g.add_particle(i,GenParticle_PID[i],GenParticle_Status[i], GenParticle_PT[i]);
 
       Int_t mothers[2] = { GenParticle_M1[i], GenParticle_M2[i] };
       for (short j=0;j<2;++j)
