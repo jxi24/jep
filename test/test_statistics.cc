@@ -34,6 +34,7 @@ int main(int argc, char *argv[]){
 
   const Int_t kMaxEvent = 1;
   const Int_t kMaxGenParticle = 1205;
+  int exception = 0;
 
   // Variables ******************************************************
 
@@ -126,54 +127,85 @@ int main(int argc, char *argv[]){
   // ****************************************************************
 
   const Long64_t nEnt = tree->GetEntriesFast();
+  int gluon_chi2 = 0;
+  int gluon_dchi2 = 0;
+  int gluon_log = 0;
+  int gluon_dlog = 0;
   for (Long64_t ent=0; ent<nEnt; ++ent) {
-    tree->GetEntry(ent);
-
-    // Collect Final State particles
-    vector<PseudoJet> particles; // unclustered final state particles
-
-    for (Int_t i=0; i<GenParticle_; ++i) {
-      // skip if not final state particle
-      if ( GenParticle_Status[i] != 1 ) continue;
-
-      PseudoJet jet(
-        GenParticle_Px[i],GenParticle_Py[i],GenParticle_Pz[i],GenParticle_E[i]
-      );
-      jet.set_user_index(GenParticle_PID[i]);
-      particles.push_back( jet );
-    }
-
-    // AntiKt4 Clustering Algorithm
-    ClusterSequence cs(particles, JetDefinition(antikt_algorithm, 1.0) );
-
-    // Sort jets by Pt
-    vector<PseudoJet> jets = sorted_by_pt(cs.inclusive_jets());
-
-    for (unsigned char i=0; i<5; ++i)
-      cout << "Jet "<<(int)i<<": Et = " << jets[i].Et() << endl;
-    cout << endl;
-
-    for(unsigned char k=0; k < 5; k++){
-    //    vector<double> prof = jep::profile(&jets[0], 0.4, 0.025, 13);
-        vector<double> prof = jep::profile(&jets[k], 1.0, 0.1, 10);
+    try{
+        tree->GetEntry(ent);
     
-        cout << "r\tE" << endl;
-        for (unsigned char i=0; i<10; ++i) {
-    //      cout << 0.1+i*0.025 << '\t' << prof[i] << endl;
-          prof[i] = prof[i]/prof[prof.size()-1];
-          cout << 0.1+i*0.1 << '\t' << prof[i] << endl;
+        // Collect Final State particles
+        vector<PseudoJet> particles; // unclustered final state particles
+    
+        for (Int_t i=0; i<GenParticle_; ++i) {
+          // skip if not final state particle
+          if ( GenParticle_Status[i] != 1 ) continue;
+    
+          PseudoJet jet(
+            GenParticle_Px[i],GenParticle_Py[i],GenParticle_Pz[i],GenParticle_E[i]
+          );
+          jet.set_user_index(GenParticle_PID[i]);
+          particles.push_back( jet );
         }
     
-        for(int j=1; j<5; j++){
-            vector<val_t> stats = statistics(j, prof, jets[0].Et(), 1.0);
-            for(unsigned char i=0; i<stats.size(); i++) {
-                cout << stats[i] << endl;
+        // AntiKt4 Clustering Algorithm
+        ClusterSequence cs(particles, JetDefinition(antikt_algorithm, 1.0) );
+    
+        // Sort jets by Pt
+        vector<PseudoJet> jets = sorted_by_pt(cs.inclusive_jets());
+    
+    //    for (unsigned char i=0; i<5; ++i)
+    //      cout << "Jet "<<(int)i<<": Et = " << jets[i].Et() << endl;
+    //    cout << endl;
+    
+        for(unsigned char k=0; k < 5; k++){
+        //    vector<double> prof = jep::profile(&jets[0], 0.4, 0.025, 13);
+            vector<double> prof = jep::profile(&jets[k], 1.0, 0.1, 10);
+        
+      //      cout << "r\tE" << endl;
+            for (unsigned char i=0; i<10; ++i) {
+        //      cout << 0.1+i*0.025 << '\t' << prof[i] << endl;
+              prof[i] = prof[i]/prof[prof.size()-1];
+        //      cout << 0.1+i*0.1 << '\t' << prof[i] << endl;
+            }
+        
+            for(int j=1; j<5; j++){
+                vector<val_t> stats = statistics(j, prof, jets[k].Et(), 1.0);
+//                cout << "Gluon: " << stats[0] << endl;
+//                cout << "Quark: " << stats[1] << endl;
+//                cout << "Higgs: " << stats[2] << endl;
+                if(stats[2] < stats[1] && stats[2] < stats[0]) {
+                    switch (j) {
+                        case 1:
+                            gluon_chi2++;
+                            break;
+                        case 2:
+                            gluon_dchi2++;
+                            break;
+                        case 3:
+                            gluon_log++;
+                            break;
+                        case 4:
+                            gluon_dlog++;
+                            break;
+                    }
+                }
             }
         }
-    
-      }
-    break;
+    }
+    catch (jep::jepex e) {
+        exception++;
+    }
+
+    //    break;
   }
+
+  cout << "chi^2: " << (double)gluon_chi2/(double)(5*nEnt) << endl;
+  cout << "dchi^2: " << (double)gluon_dchi2/(double)(5*nEnt) << endl;
+  cout << "log: " << (double)gluon_log/(double)(5*nEnt) << endl;
+  cout << "dlog: " << (double)gluon_dlog/(double)(5*nEnt) << endl;
+  cout << "exceptions: " << exception << endl;
 
   file->Close();
   delete file;
