@@ -153,9 +153,8 @@ int main(int argc, char *argv[]){
 */
 
       jep::shower_info *user_info =
-      jep::shower_info::add(GenParticle_PID[i], GenParticle_Status[i],
-                            GenParticle_M1[i], GenParticle_M2[i],
-                            GenParticle_D1[i], GenParticle_D2[i]);
+      jep::shower_info::add(i, GenParticle_PID[i], GenParticle_Status[i],
+                            GenParticle_M1[i], GenParticle_M2[i]);
 
       // skip if not final state particle
       if ( GenParticle_Status[i] != 1 ) continue;
@@ -174,20 +173,29 @@ int main(int argc, char *argv[]){
     // Sort jets by Pt
     vector<PseudoJet> jets = sorted_by_pt(cs.inclusive_jets());
 
-    for (size_t i=0; i<5; ++i)
-      cout << "Jet "<<(int)i<<": Et = " << jets[i].Et()
-           << " origin: " << jep::origin(jets[i])->pid()
+    // Loop over 5 leading jets
+    for (size_t i=0; i<5; ++i) {
+
+      // Validate jet
+      jep::jet_validator jv(jets[i],5);
+      bool good = jv.is_from_higgs_bb();
+      cout << "Jet "<<(int)i+1<<": Et = " << jets[i].Et()
+           << " from H->bb: " << good
            << endl << endl;
-    cout << endl;
 
-    vector<double> prof = jep::profile(jets.front(), 0.4, 0.025, 13);
-//    vector<double> prof = jep::profile(&jets[0], 1.0, 0.1, 10);
+      // Print jet profile
+      if (good) {
+        vector<double> prof = jep::profile(jets[0], 0.4, 0.025, 13);
 
-    cout <<left<<setw(5)<<'r'<<"  "<<'E'<< endl;
-    for (size_t i=0; i<13; ++i) {
-      cout << setw(5) << 0.1+i*0.025 << "  " << setw(7) << prof[i] << endl;
-//      cout << 0.1+i*0.1 << '\t' << prof[i] << endl;
+        cout <<left<<setw(5)<<'r'<<"  "<<'E'<< endl;
+        for (size_t i=0; i<13; ++i) {
+          cout << setw(5) << 0.1+i*0.025 << "  "
+               << setw(7) << prof[i] << endl;
+        }
+        cout << endl;
+      }
     }
+    cout << endl;
 
     // Draw shower graph
     shower_graph_dot g;

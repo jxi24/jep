@@ -22,11 +22,12 @@ struct particle {
 };
 
 bool sort_by_E(particle* i, particle* j) {
-  return ( i->E < j->E );
+  return ( i->E > j->E );
 }
 
 ofstream& operator<<(ofstream& f, const particle& v) {
   f << v.i << " [label=\"";
+  f << v.i << ':';
   switch (v.pid) {
     case     1: f << 'd';        break;
     case     2: f << 'u';        break;

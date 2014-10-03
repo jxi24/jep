@@ -18,41 +18,46 @@ profile(const fastjet::PseudoJet& jet,
 // ********************************************************
 class shower_info: public fastjet::PseudoJet::UserInfoBase {
 private:
-  const unsigned short id_;
-  const short pid_, status_, m1_, m2_, d1_, d2_;
+  const int _id, _pid, _status, _m1, _m2;
 
-  shower_info(short pid, short status,
-              short m1, short m2, short d1, short d2);
+  shower_info(int id, int pid, int status, int m1, int m2);
 
   static shower_info** infos;
-  static unsigned short size, counter;
+  static unsigned size, counter;
 
 public:
   virtual ~shower_info();
 
-  unsigned short id() const; // number in the particles list of event
-  short pid() const; // pdg code
-  short status() const;
+  int id() const; // number in the particles list of event
+  int pid() const; // pdg code
+  int status() const;
 
   const shower_info* m1() const;
   const shower_info* m2() const;
-  const shower_info* d1() const;
-  const shower_info* d2() const;
 
-  static void init(unsigned short N);
+  void trace_back(std::vector<const shower_info*>& v) const;
+
+  static void init(unsigned N);
   static void clear();
 
-  static shower_info* add(short pid, short status,
-    short m1, short m2, short d1, short d2);
-
+  static shower_info* add(int id, int pid, int status, int m1, int m2);
 };
 
-// function to get jet particle of origin
+// Jet validator
+// Check if a jet originated from a process
 // ********************************************************
-const shower_info*
-origin(const fastjet::PseudoJet& jet,
-       unsigned short num_parts=5);
+class jet_validator {
+  // array of pointers to info of leading constituents
+  const shower_info** lead;
+  // number of leading constituents
+  unsigned short nlead;
 
-}
+public:
+  jet_validator(const fastjet::PseudoJet& jet, unsigned short nlead);
+  virtual ~jet_validator();
 
+  bool is_from_higgs_bb() const;
+};
+
+} // end jep namespace
 #endif

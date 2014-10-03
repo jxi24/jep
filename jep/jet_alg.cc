@@ -14,6 +14,7 @@ using fastjet::PseudoJet;
 
 namespace jep {
 
+// ********************************************************
 // get jet energy profile
 // ********************************************************
 vector<double>
@@ -60,84 +61,80 @@ profile(const PseudoJet& jet,
   return E_;
 }
 
-// get jet particle of origin
 // ********************************************************
-typedef vector<const shower_info*>::iterator shower_iter;
+// Jet validator
+// Check if a jet originated from a process
+// ********************************************************
 
-const shower_info* origin(const PseudoJet& jet, unsigned short num_parts)
+#define ERROR2 jepex(__func__,__LINE__,"jet_validator")
+
+jet_validator::jet_validator(const PseudoJet& jet, unsigned short nlead)
+: lead(new const shower_info*[nlead]), nlead(nlead)
 {
   if (!jet.has_constituents()) // if no constituents
-    throw ERROR << "Jet has no constituents";
+    throw ERROR2 << "Jet has no constituents";
 
   // get jet constituents ( returns object, not reference )
   // sorted by pt
   const vector<PseudoJet> constituents
     = fastjet::sorted_by_pt(jet.constituents());
 
-  // intermediate particles
-  vector<const shower_info*> current;
+  const size_t ncons = constituents.size();
+  if (ncons<nlead) this->nlead = ncons;
 
-  // number of particles to track back
-  const unsigned short N = (
-    num_parts<constituents.size() ? num_parts : constituents.size()
-  );
-  for (unsigned short i=0; i<N; ++i) {
+  for (unsigned short i=0; i<this->nlead; ++i) {
     if (!constituents[i].has_user_info()) // if no user info
-      throw ERROR << "Jet constituent "<<i<<" has no user info";
+      throw ERROR2 << "Jet constituent "<<i<<" has no user info";
 
-    current.push_back( static_cast<const shower_info*>(
+    lead[i] = static_cast<const shower_info*>(
       constituents[i].user_info_ptr()
-    ) );
+    );
 
-    //test(constituents[i].Et())
+    cout << lead[i]->id() << "  " << constituents[i].Et() << endl;
   }
-
-
-  while (current.size()>1) {
-    for (size_t k=0; k<current.size(); ++k) cout << current[k]->id() << ' ';
-    cout << endl;
-
-    vector<const shower_info*> next;
-
-    for (shower_iter it=current.begin(), endi=current.end(); it!=endi; ++it)
-    {
-      const shower_info* m[2] = { (*it)->m1(), (*it)->m2() };
-
-      for (unsigned char i=0; i<2; ++i) {
-        if (!m[i]) continue;
-
-        bool seen = false;
-        for (shower_iter jt=next.begin(), endj=next.end(); jt!=endj; ++jt)
-        {
-          seen = ( m[i]->id() == (*jt)->id() );
-          if (seen) break;
-        }
-        if (!seen) next.push_back(m[i]);
-      }
-    }
-
-    if (next.size()==0) {
-      cerr << "Warning in jep::origin: "
-              "jet origin tracked to initial state particle" << endl;
-      return current.front();
-    }
-
-    current = next;
-  }
-
-  cout << current[0]->id() << endl;
-  return current.front();
 }
 
+jet_validator::~jet_validator() {
+  delete[] lead;
+}
+
+// check if jet is from higgs->bb-bar process
+bool jet_validator::is_from_higgs_bb() const
+{
+  vector<const shower_info*> chain[nlead];
+
+  for (unsigned short i=0; i<nlead; ++i) {
+    lead[i]->trace_back(chain[i]);
+    const size_t size = chain[i].size();
+
+    size_t k = size;
+    const shower_info* p;
+
+    // find initial state Higgs
+    while (k>0) {
+      p = chain[i][--k]; // current particle
+
+      if (p->pid()==25) // is Higgs
+        if (p->status()==3) break; // is initial state
+    }
+
+    // if no Higgs in initial state
+    if (k==0) return false;
+
+    // is next particle b or b-bar?
+    p = chain[i][--k];
+    if ( abs(p->pid())!=5 || p->status()!=3 ) return false;
+  }
+
+  return true;
+}
+
+// ********************************************************
 // class derived from fastjet::PseudoJet::UserInfoBase
 // for tracking particle evolution within the event shower
 // ********************************************************
-shower_info::shower_info(
-  short pid, short status,
-  short m1, short m2, short d1, short d2
-)
-: id_(counter), pid_(pid), status_(status),
-  m1_(m1), m2_(m2), d1_(d1), d2_(d2)
+shower_info::shower_info(int id, int pid, int status, int m1, int m2)
+: _id(id), _pid(pid), _status(status), _m1(m1), _m2(m2)
 {
   infos[counter] = this;
   ++counter;
@@ -146,49 +143,51 @@ shower_info::shower_info(
 shower_info::~shower_info() { }
 
 shower_info** shower_info::infos = NULL;
-unsigned short shower_info::size=0;
-unsigned short shower_info::counter=0;
+unsigned shower_info::size=0;
+unsigned shower_info::counter=0;
 
-void shower_info::init(unsigned short N) {
+void shower_info::init(unsigned N) {
   size = N;
   infos = new shower_info*[size];
 }
 void shower_info::clear() {
   //for (unsigned short i=0;i<size;++i) delete infos[i];
-  // FastJet deletes these appratenly
+  // FastJet deletes these apparently
   // need to confirm
   delete[] infos;
   infos = NULL;
   counter=0;
 }
 
-shower_info* shower_info::add(
-  short pid, short status,
-  short m1, short m2, short d1, short d2
-) {
+shower_info* shower_info::add(int id, int pid, int status, int m1, int m2) {
   if (counter==size) ERROR << "More shower_info's then expected";
-  return new shower_info(pid,status,m1,m2,d1,d2);
+  return new shower_info(id,pid,status,m1,m2);
 }
 
-unsigned short shower_info::id() const { return id_; }
-short shower_info::pid() const { return pid_; }
-short shower_info::status() const { return status_; }
+int shower_info::id() const { return _id; }
+int shower_info::pid() const { return _pid; }
+int shower_info::status() const { return _status; }
 
 const shower_info* shower_info::m1() const {
-  if (m1_ == -1) return NULL;
-  return infos[m1_];
+  if (_m1 == -1) return NULL;
+  return infos[_m1];
 }
 const shower_info* shower_info::m2() const {
-  if (m2_ == -1) return NULL;
-  return infos[m2_];
+  if (_m2 == -1) return NULL;
+  return infos[_m2];
 }
-const shower_info* shower_info::d1() const {
-  if (d1_ == -1) return NULL;
-  return infos[d1_];
-}
-const shower_info* shower_info::d2() const {
-  if (d2_ == -1) return NULL;
-  return infos[d2_];
+
+void shower_info::trace_back(vector<const shower_info*>& v) const {
+  if (_m1 != -1) {
+    const shower_info* m1 = infos[_m1];
+    v.push_back(m1);
+    m1->trace_back(v);
+  }
+  if (_m2 != -1) {
+    const shower_info* m2 = infos[_m2];
+    v.push_back(m2);
+    m2->trace_back(v);
+  }
 }
 
 } // end jep namespace
