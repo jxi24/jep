@@ -10,7 +10,7 @@
 #include <fastjet/ClusterSequence.hh>
 
 #include "jep/jet_alg.h"
-#include "jep/shower_graph_dot.h"
+#include "shower/graph_dot.h"
 
 #define test(var) \
   cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << endl;
@@ -212,7 +212,7 @@ int main(int argc, char *argv[]){
       g.add_jet(ss.str().c_str(),jet_particles);
     }
 
-    g.save("jet.gv");
+    g.save("graph.gv");
 
     // clear shower info for the event
     jep::shower_info::clear();

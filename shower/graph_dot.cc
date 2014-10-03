@@ -1,4 +1,4 @@
-#include "jep/shower_graph_dot.h"
+#include "shower/graph_dot.h"
 
 #include <string>
 #include <iostream>
@@ -209,8 +209,11 @@ void shower_graph_dot::save(const char* filename) const {
     daughter_iter dend   = p->second->daughters.end();
 
     if (dend-dbegin==1) {
+      float frac = p->second->frac;
+      (*dbegin)->frac = frac;
+
       f << p->first << "->" << (*dbegin)->i << " [penwidth="
-        << p->second->frac << "];" << endl;
+        << frac << "];" << endl;
       continue;
     }
 
@@ -261,7 +264,7 @@ void shower_graph_dot::save(const char* filename) const {
       if (frac<1.) frac = 1.;
 
       f << (*p)->i << "->\"" << j->first << "\" [penwidth="
-        << frac << ", color=brown];" << endl;
+        << frac << ", color=darkorange];" << endl;
     }
 
     for (; p<pend; ++p) {
