@@ -10,15 +10,15 @@ CFLAGS := -Wall -g -I.
 ROOT_CFLAGS := $(shell root-config --cflags)
 ROOT_LIBS   := $(shell root-config --libs)
 
-FJ_LIBS := -lfastjet
-#FJ_LIBS := $(shell /work/raida/isaacs21/fastjet/bin/fastjet-config --libs)
-#FJ_CFLAGS := $(shell /work/raida/isaacs21/fastjet/bin/fastjet-config --cxxflags)
+#FJ_LIBS := -lfastjet
+FJ_LIBS := $(shell /work/raida/isaacs21/fastjet/bin/fastjet-config --libs)
+FJ_CFLAGS := $(shell /work/raida/isaacs21/fastjet/bin/fastjet-config --cxxflags)
 
 FC := gfortran
 FFLAGS := -ffixed-line-length-none -fno-automatic -O2
 
-CERN_LIB := -lmathlib
-#CERN_LIB := -L/usr/lib64/cernlib/2006-g77/lib -lmathlib
+#CERN_LIB := -lmathlib
+CERN_LIB := -L/usr/lib64/cernlib/2006-g77/lib -lmathlib
 
 LHAPDF_INSTALL := /work/raida/isaacs21/LHAPDF/LHAPDF6
 LHAPDF_CONFIG  := $(LHAPDF_INSTALL)/bin/lhapdf-config

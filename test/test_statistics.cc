@@ -122,6 +122,9 @@ int main(int argc, char *argv[]){
   tree->SetBranchStatus("GenParticle.Py",1);
   tree->SetBranchStatus("GenParticle.Pz",1);
 
+  tree->SetBranchStatus("GenParticle.M1",1);
+  tree->SetBranchStatus("GenParticle.M2",1);
+
   // ****************************************************************
   // Loop over input root file entries
   // ****************************************************************
@@ -131,6 +134,7 @@ int main(int argc, char *argv[]){
   int gluon_dchi2 = 0;
   int gluon_log = 0;
   int gluon_dlog = 0;
+  int nHiggs = 0;
   for (Long64_t ent=0; ent<nEnt; ++ent) {
     try{
         tree->GetEntry(ent);
@@ -138,15 +142,23 @@ int main(int argc, char *argv[]){
         // Collect Final State particles
         vector<PseudoJet> particles; // unclustered final state particles
     
+        // store info about shower to pass to FastJet
+        jep::shower_info::init(GenParticle_);
+
         for (Int_t i=0; i<GenParticle_; ++i) {
+          jep::shower_info *user_info =
+          jep::shower_info::add(i, GenParticle_PID[i], GenParticle_Status[i],
+                                GenParticle_M1[i], GenParticle_M2[i]);
+
           // skip if not final state particle
           if ( GenParticle_Status[i] != 1 ) continue;
     
-          PseudoJet jet(
+          PseudoJet particle(
             GenParticle_Px[i],GenParticle_Py[i],GenParticle_Pz[i],GenParticle_E[i]
           );
-          jet.set_user_index(GenParticle_PID[i]);
-          particles.push_back( jet );
+          particle.set_user_index(i);
+          particle.set_user_info (user_info);
+          particles.push_back( particle );
         }
     
         // AntiKt4 Clustering Algorithm
@@ -154,27 +166,25 @@ int main(int argc, char *argv[]){
     
         // Sort jets by Pt
         vector<PseudoJet> jets = sorted_by_pt(cs.inclusive_jets());
-    
-    //    for (unsigned char i=0; i<5; ++i)
-    //      cout << "Jet "<<(int)i<<": Et = " << jets[i].Et() << endl;
-    //    cout << endl;
+
+        int goodcnt = 0;
     
         for(unsigned char k=0; k < 5; k++){
-        //    vector<double> prof = jep::profile(jets[0], 0.4, 0.025, 13);
+            if(jets[k].Et() < 100) continue;
+            jep::jet_validator jv(jets[k],5);
+            bool good = jv.is_from_higgs_bb();
             vector<double> prof = jep::profile(jets[k], 1.0, 0.1, 10);
         
-      //      cout << "r\tE" << endl;
             for (unsigned char i=0; i<10; ++i) {
-        //      cout << 0.1+i*0.025 << '\t' << prof[i] << endl;
               prof[i] = prof[i]/prof[prof.size()-1];
-        //      cout << 0.1+i*0.1 << '\t' << prof[i] << endl;
             }
         
+            if(good) {
+                nHiggs++;
+                goodcnt++;
+            }
             for(int j=1; j<5; j++){
                 vector<val_t> stats = statistics(j, prof, jets[k].Et(), 1.0);
-//                cout << "Gluon: " << stats[0] << endl;
-//                cout << "Quark: " << stats[1] << endl;
-//                cout << "Higgs: " << stats[2] << endl;
                 if(stats[2] < stats[1] && stats[2] < stats[0]) {
                     switch (j) {
                         case 1:
@@ -193,18 +203,25 @@ int main(int argc, char *argv[]){
                 }
             }
         }
+        if(goodcnt > 1) {
+            cout << ent;
+            if(goodcnt > 2) cout << "*";
+            cout << endl;
+        }
     }
     catch (jep::jepex e) {
         exception++;
     }
 
-    //    break;
+    // clear shower info for the event
+    jep::shower_info::clear();
   }
 
-  cout << "chi^2: " << (double)gluon_chi2/(double)(5*nEnt) << endl;
-  cout << "dchi^2: " << (double)gluon_dchi2/(double)(5*nEnt) << endl;
-  cout << "log: " << (double)gluon_log/(double)(5*nEnt) << endl;
-  cout << "dlog: " << (double)gluon_dlog/(double)(5*nEnt) << endl;
+  cout << "chi^2: " << (double)gluon_chi2 << endl;
+  cout << "dchi^2: " << (double)gluon_dchi2 << endl;
+  cout << "log: " << (double)gluon_log << endl;
+  cout << "dlog: " << (double)gluon_dlog << endl;
+  cout << "Higgs: " << (double)nHiggs << endl; 
   cout << "exceptions: " << exception << endl;
 
   file->Close();

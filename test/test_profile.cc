@@ -164,7 +164,7 @@ int main(int argc, char *argv[]){
     }
 
     // AntiKt4 Clustering Algorithm
-    ClusterSequence cs(particles, JetDefinition(antikt_algorithm, 0.4) );
+    ClusterSequence cs(particles, JetDefinition(antikt_algorithm, 1.0) );
 
     // Sort jets by Pt
     vector<PseudoJet> jets = sorted_by_pt(cs.inclusive_jets());
