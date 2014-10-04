@@ -136,6 +136,7 @@ int main(int argc, char *argv[]){
   int log[3] = {0};
   int dlog[3] = {0};
   int nHiggs = 0, nGluon = 0, nQuark = 0;
+  int gFalse[4]={0}, qFalse[4]={0}, hFalse[4]={0};
   for (Long64_t ent=0; ent<nEnt; ++ent) {
     try{
         tree->GetEntry(ent);
@@ -170,20 +171,27 @@ int main(int argc, char *argv[]){
 
         int goodcnt = 0;
     
-        for(unsigned char k=0; k < 5; k++){
+        for(unsigned int k=0; k < 5; k++){
             if(jets[k].Et() < 100) continue;
             jep::jet_validator jv(jets[k],5);
-            bool good = jv.is_from_higgs_bb();
+            bool is_higgs = jv.is_from_higgs_bb();
+//            if(!is_higgs) continue;
             bool within_cone = true;
-            vector<double> prof = jep::profile(jets[k], 1.0, 0.1, 10, within_cone, 0.3,false);
+            vector<double> prof = jep::profile(jets[k], 1.0, 0.1, 10, within_cone, 0.1,false);
         
             for (unsigned char i=0; i<10; ++i) {
               prof[i] = prof[i]/prof[prof.size()-1];
             }
         
-            if(good) {
+/*            if(is_gluon) {
+                nGluon++;
+            } else if(is_quark) {
+                nQuark++;
+            } else if(is_higgs) {
                 nHiggs++;
-                goodcnt++;
+            }*/
+            if(is_higgs) {
+                nHiggs++;
             }
             for(int j=1; j<5; j++){
                 vector<val_t> stats = statistics(j, prof, jets[k].Et(), 1.0);
@@ -191,15 +199,19 @@ int main(int argc, char *argv[]){
                 if(stats[0] < stats[1] && stats[0] < stats[2]) {
                     switch (j) {
                         case 1:
+                            if(is_higgs) gFalse[0]++;
                             chi2[0]++;
                             break;
                         case 2:
+                            if(is_higgs) gFalse[1]++;
                             dchi2[0]++;
                             break;
                         case 3:
+                            if(is_higgs) gFalse[2]++;
                             log[0]++;
                             break;
                         case 4:
+                            if(is_higgs) gFalse[3]++;
                             dlog[0]++;
                             break;
                     }
@@ -207,15 +219,19 @@ int main(int argc, char *argv[]){
                 } else if(stats[1] < stats[0] && stats[1] < stats[2]) {
                     switch (j) {
                         case 1:
+                            if(is_higgs) qFalse[0]++;
                             chi2[1]++;
                             break;
                         case 2:
+                            if(is_higgs) qFalse[1]++;
                             dchi2[1]++;
                             break;
                         case 3:
+                            if(is_higgs) qFalse[2]++;
                             log[1]++;
                             break;
                         case 4:
+                            if(is_higgs) qFalse[3]++;
                             dlog[1]++;
                             break;
                     }
@@ -223,25 +239,37 @@ int main(int argc, char *argv[]){
                 } else if(stats[2] < stats[1] && stats[2] < stats[0]) {
                     switch (j) {
                         case 1:
+                            if(!is_higgs) {
+                                hFalse[0]++;
+                            }
                             chi2[2]++;
                             break;
                         case 2:
+                            if(!is_higgs) {
+                                hFalse[1]++;
+                            }
                             dchi2[2]++;
                             break;
                         case 3:
+                            if(!is_higgs) {
+                                hFalse[2]++;
+                            }
                             log[2]++;
                             break;
                         case 4:
+                            if(!is_higgs) {
+                                hFalse[3]++;
+                            }
                             dlog[2]++;
                             break;
                     }
+                } else {
+                    cout << "NO BEST for stat test " << j << endl;
+                    cout << "Gluon: " << stats[0] << endl;
+                    cout << "Quark: " << stats[1] << endl;
+                    cout << "Higgs: " << stats[2] << endl;
                 }
             }
-        }
-        if(goodcnt > 1) {
-            cout << ent;
-            if(goodcnt > 2) cout << "*";
-            cout << endl;
         }
     }
     catch (jep::jepex e) {
@@ -252,15 +280,19 @@ int main(int argc, char *argv[]){
     jep::shower_info::clear();
   }
 
-  cout << "+-------------------------------------------+" << endl;
-  cout << "|" << setw(11) << "|" << setw(10) << "Gluon  " << "|" << setw(10) << "Quark  " << "|" << setw(10) << "Higgs  " << "|" << endl;
-  cout << "+-------------------------------------------+" << endl;
-  cout << "|" << setw(10) << "chi^2 " << "|" << setw(10) << chi2[0] << "|" << setw(10) << chi2[1] << "|" << setw(10) << chi2[2] << "|" << endl;
-  cout << "|" << setw(10) << "dchi^2 " <<"|" << setw(10) << dchi2[0] << "|" << setw(10) << dchi2[1] << "|" << setw(10) << dchi2[2] << "|" << endl;
-  cout << "|" << setw(10) << "log " << "|" << setw(10) << log[0] << "|" << setw(10) << log[1] << "|" << setw(10) << log[2] << "|" << endl;
-  cout << "|" << setw(10) << "dlog " << "|" << setw(10) << dlog[0] << "|" << setw(10) << dlog[1] << "|" << setw(10) << dlog[2] << "|" << endl;
-  cout << "|" << setw(10) << "valid " << "|" << setw(10) << nGluon << "|" << setw(10) << nQuark << "|" << setw(10) << nHiggs << "|" << endl;
-  cout << "+-------------------------------------------+" << endl << endl;
+  cout << "+-----------------------------------------------------+" << endl;
+  cout << "|" << setw(21) << "|" << setw(10) << "Gluon  " << "|" << setw(10) << "Quark  " << "|" << setw(10) << "Higgs  " << "|" << endl;
+  cout << "+-----------------------------------------------------+" << endl;
+  cout << "|" << setw(20) << "chi^2 " << "|" << setw(10) << chi2[0] << "|" << setw(10) << chi2[1] << "|" << setw(10) << chi2[2] << "|" << endl;
+  cout << "|" << setw(20) << "dchi^2 " <<"|" << setw(10) << dchi2[0] << "|" << setw(10) << dchi2[1] << "|" << setw(10) << dchi2[2] << "|" << endl;
+  cout << "|" << setw(20) << "log " << "|" << setw(10) << log[0] << "|" << setw(10) << log[1] << "|" << setw(10) << log[2] << "|" << endl;
+  cout << "|" << setw(20) << "dlog " << "|" << setw(10) << dlog[0] << "|" << setw(10) << dlog[1] << "|" << setw(10) << dlog[2] << "|" << endl;
+  cout << "|" << setw(20) << "valid " << "|" << setw(10) << nGluon << "|" << setw(10) << nQuark << "|" << setw(10) << nHiggs << "|" << endl;
+  cout << "|" << setw(20) << "false h c^2 " << "|" << setw(10) << gFalse[0] << "|" << setw(10) << qFalse[0] << "|" << setw(10) << hFalse[0] << "|" << endl;
+  cout << "|" << setw(20) << "false h dc^2 " << "|" << setw(10) << gFalse[1] << "|" << setw(10) << qFalse[1] << "|" << setw(10) << hFalse[1] << "|" << endl;
+  cout << "|" << setw(20) << "false h log " << "|" << setw(10) << gFalse[2] << "|" << setw(10) << qFalse[2] << "|" << setw(10) << hFalse[2] << "|" << endl;
+  cout << "|" << setw(20) << "false h dlog " << "|" << setw(10) << gFalse[3] << "|" << setw(10) << qFalse[3] << "|" << setw(10) << hFalse[3] << "|" << endl;
+  cout << "+-----------------------------------------------------+" << endl << endl;
   cout << "exceptions: " << exception << endl;
 
   file->Close();

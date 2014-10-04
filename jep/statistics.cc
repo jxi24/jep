@@ -60,7 +60,7 @@ namespace jep {
         val_t dtheory, ddata;
         val_t rstep = (Rmax - 0.1)/data.size();
 
-        for(unsigned char n = 0; n < data.size()-1; n++) {
+        for(unsigned int n = 0; n < data.size()-1; n++) {
             dtheory = (theory[n+1]-theory[n])/rstep;
             ddata = (val_t)(data[n+1]-data[n])/rstep;
 
@@ -73,7 +73,7 @@ namespace jep {
     val_t loglike(std::vector<val_t> theory, std::vector<double> data) {
         val_t logl = 1.0;
 
-        for(unsigned char n = 0; n < data.size(); n++) {
+        for(unsigned int n = 0; n < data.size(); n++) {
             if( data[n] != 0 && theory[n] != 0) logl *= theory[n]/data[n];
         }
 
@@ -85,11 +85,12 @@ namespace jep {
         val_t dtheory, ddata;
         val_t rstep = (Rmax - 0.1)/data.size();
 
-        for(unsigned char n = 0; n < data.size(); n++) {
+        for(unsigned int n = 0; n < data.size()-1; n++) {
             dtheory = (theory[n+1]-theory[n])/rstep;
             ddata = (val_t)(data[n+1]-data[n])/rstep;
 
-            if( ddata != 0 && dtheory != 0) logl *= dtheory/ddata;
+            if( ddata != 0 && dtheory != 0) logl *= std::abs(dtheory/ddata);
+            if(logl != logl) std::cout << data[n+1] << " " << data[n] << std::endl;
         }
 
         return log(logl);
