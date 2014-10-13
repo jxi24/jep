@@ -178,13 +178,15 @@ int main(int argc, char *argv[]){
       jep::jet_validator jv(jets[i],5);
       bool from_higgs_bb = jv.is_from_higgs_bb();
       bool from_gluons = jv.is_from_gluons();
+      bool from_quarks = jv.is_from_quarks();
       cout << "Jet "<<(int)i+1<<": Et = " << jets[i].Et();
       if (from_higgs_bb) cout << " from H->bb";
       if (from_gluons) cout << " from gluons";
+      if (from_quarks) cout << " from quarks";
       cout << endl;
 
       // Print jet profile
-      if (from_higgs_bb || from_gluons) {
+      if (from_higgs_bb || from_gluons || from_quarks) {
         bool within_cone = true;
         vector<double> prof = jep::profile(jets[i], 0.7, 0.1, 7, within_cone);
 
