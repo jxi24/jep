@@ -143,6 +143,74 @@ bool jet_validator::is_from_higgs_bb() const
   return true;
 }
 
+// check if jet is from gluon scattering
+bool jet_validator::is_from_gluons() const
+{
+  for (unsigned short i=0; i<nlead; ++i)
+    if (!is_from_gluons(lead[i])) return false;
+
+  return true;
+}
+
+// ??? Does it matter which gluons originated the jet?
+
+bool jet_validator::is_from_gluons(const shower_info* p) const
+{
+  short nm = 0, // number of mothers
+        ng = 0; // number of gluon mothers
+
+  const shower_info* m[2] = { p->m1(), p->m2() };
+  for (short i=0;i<2;++i) {
+    if (m[i]) {
+      ++nm;
+      if (m[i]->pid()==21) { if (m[i]->status()==3) ++ng; }
+      else if (is_from_gluons(m[i])) ++ng;
+    }
+  }
+
+  if (nm==0) return false;
+  if (ng<nm) return false;
+  return true;
+}
+
+// check if jet is from quark scattering
+bool jet_validator::is_from_quarks() const
+{
+  for (unsigned short i=0; i<nlead; ++i)
+    if (!is_from_quarks(lead[i])) return false;
+
+  return true;
+}
+
+bool jet_validator::is_from_quarks(const shower_info* p) const
+{
+  short nm = 0, // number of mothers
+        nq = 0; // number of quark mothers
+
+  const shower_info* m[2] = { p->m1(), p->m2() };
+  for (short i=0;i<2;++i) {
+    if (m[i]) {
+      ++nm;
+      if (m[i]->status()==3) {
+        int pid_abs = abs(m[i]->pid());
+        if ( // quarks pid's
+          pid_abs==1 ||
+          pid_abs==2 ||
+          pid_abs==3 ||
+          pid_abs==4 ||
+          pid_abs==5 ||
+          pid_abs==6
+        ) ++nq;
+      }
+      else if (is_from_quarks(m[i])) ++nq;
+    }
+  }
+
+  if (nm==0) return false;
+  if (nq<nm) return false;
+  return true;
+}
+
 // ********************************************************
 // class derived from fastjet::PseudoJet::UserInfoBase
 // for tracking particle evolution within the event shower

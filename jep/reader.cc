@@ -132,7 +132,7 @@ std::vector<val_t> reader::psi(val_t E) const {
     throw ERROR << "Jet is too soft for profiling. No data for E="<<E;
 
   if ( E>head.E_max() )
-    throw ERROR << "Jet is too hard for profiling. No data for E="<<E;
+    throw ERROR << "Jet cannot be profiled. No data for E="<<E<<" > "<<head.E_max();
 
   num_t iE = (E-head.E_min)/head.E_step;
 

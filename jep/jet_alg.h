@@ -53,11 +53,17 @@ class jet_validator {
   // number of leading constituents
   unsigned short nlead;
 
+  // is particle from gluon scattering
+  bool is_from_gluons(const shower_info* p) const;
+  bool is_from_quarks(const shower_info* p) const;
+
 public:
   jet_validator(const fastjet::PseudoJet& jet, unsigned short nlead);
   virtual ~jet_validator();
 
-  bool is_from_higgs_bb() const;
+  bool is_from_higgs_bb() const; // is jet from higgs->bb-bar process
+  bool is_from_gluons() const;   // is jet from gluon scattering
+  bool is_from_quarks() const;   // is jet from gluon scattering
 };
 
 } // end jep namespace
