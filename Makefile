@@ -67,7 +67,7 @@ lib/test_write.o lib/test_ascii.o lib/test_interp.o: lib/%.o: test/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m ... "
 	@$(CPP) $(CFLAGS) -c $(filter %.cc,$^) -o $@
 
-lib/test_plot.o: lib/%.o: test/%.cc
+lib/test_plot_theory_profiles.o: lib/%.o: test/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m ... "
 	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) -c $(filter %.cc,$^) -o $@
 
@@ -84,7 +84,7 @@ bin/test_write bin/test_ascii bin/test_interp: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
 	@$(CPP) $(filter %.o,$^) -o $@
 
-bin/test_plot: bin/%: lib/%.o
+bin/test_plot_theory_profiles: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
 	@$(CPP) $(filter %.o,$^) -o $@ $(ROOT_LIBS)
 
@@ -115,7 +115,7 @@ lib/test_statistics.o : jep/common.h jep/reader.h jep/statistics.h
 bin/test_write    : lib/jep_common.o lib/jep_writer.o lib/jep_reader.o
 bin/test_interp   : lib/jep_common.o lib/jep_reader.o
 bin/test_ascii    : lib/jep_common.o lib/jep_reader.o
-bin/test_plot     : lib/jep_common.o lib/jep_reader.o
+bin/test_plot_theory_profiles: lib/jep_common.o lib/jep_reader.o
 bin/test_single_event: lib/jep_jet_alg.o lib/shower_graph_dot.o
 bin/test_profile  : lib/jep_jet_alg.o
 bin/write_data    : lib/jep_common.o lib/jep_writer.o lib/mod_constant.o lib/mod_terms.o
