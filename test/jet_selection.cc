@@ -1,40 +1,147 @@
 #include <iostream>
+#include <iomanip>
+#include <fstream>
+#include <vector>
+#include <ctime>
+#include <algorithm>
+
+#include <boost/program_options.hpp>
 
 #include <TFile.h>
 #include <TTree.h>
 
 #include <fastjet/ClusterSequence.hh>
 
-#include "jep/jet_alg.h"
-
 #define test(var) \
   cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << endl;
 
 using namespace fastjet;
 using namespace std;
-using namespace jep;
+namespace po = boost::program_options;
+
+struct sort_by_r {
+  const PseudoJet& jet;
+  sort_by_r(const PseudoJet& jet): jet(jet) { }
+  bool operator() (const PseudoJet& i, const PseudoJet& j) {
+    return ( jet.delta_R(i) < jet.delta_R(j) );
+  }
+};
+
+ofstream& operator<<(ofstream& dat, const PseudoJet& jet)
+{
+  static const streamsize
+    mom_size = sizeof(double)*4,
+    int_size = sizeof(int),
+    szt_size = sizeof(size_t);
+
+  double mom[4] = { jet.E(), jet.px(), jet.py(), jet.pz() };
+  dat.write((char*)&mom, mom_size);
+
+  // get jet constituents ( returns object, not reference )
+  vector<PseudoJet> constituents( jet.constituents() );
+
+  // sort constituents by delta_R in ascending order
+  sort(constituents.begin(), constituents.end(), sort_by_r(jet));
+
+  const size_t size = constituents.size();
+  dat.write((char*)&size, szt_size);
+
+  if (size>0) for (size_t i=0; i<size; ++i) {
+    double mom[4] = { constituents[i].E (), constituents[i].px(),
+                      constituents[i].py(), constituents[i].pz() };
+    dat.write((char*)&mom, mom_size);
+
+    int pid = constituents[i].user_index();
+    dat.write((char*)&pid, int_size);
+  } else {
+    cerr << "Jet has no constituents" << endl;
+  }
+
+  return dat;
+}
+
+enum method_t { leading_jet };
 
 int main(int argc, char *argv[])
 {
-  if ( argc<4 ) {
-    cout << "Usage: "<<argv[0]<<" input.root output.root [options]" << endl;
-    cout << "Selection methods:" << endl;
-    cout << "  leading-jet : take leading jet in the event" << endl;
-    cout << "    confirm T : check that hardest particle in the jet\n"
-                            "originated from particle type T" << endl;
-    exit(0);
+  // START OPTIONS **************************************************
+  string input_file, output_file, method_str;
+  int _kMaxGenParticle;
+  float cone_r;
+  method_t method;
+
+  try {
+    // General Options ------------------------------------
+    po::options_description all_opt("Options");
+    all_opt.add_options()
+      ("help,h", "produce help message")
+      ("input,i", po::value<string>(&input_file),
+       "input stdhep root file (from showering)")
+      ("output,o", po::value<string>(&output_file),
+       "output binary file")
+      ("method,m", po::value<string>(&method_str),
+       "jet selection method")
+      ("cone-radius,r", po::value<float>(&cone_r),
+       "antikt jet clustering cone radius")
+
+      ("max-gen", po::value<int>(&_kMaxGenParticle)->default_value(2000),
+       "maximum GenParticle_* arrays size in input file")
+    ;
+
+    po::variables_map vm;
+    po::store(po::parse_command_line(argc, argv, all_opt), vm);
+    po::notify(vm);
+
+    // Options Properties ---------------------------------
+    if (argc==1 || vm.count("help")) {
+      cout << all_opt << endl;
+      cout << "Selection methods:" << endl;
+      cout << "  leading-jet: select leading pt jet in every event" << endl;
+      cout << endl;
+      return 0;
+    }
+
+    if (!method_str.compare("leading-jet")) method = leading_jet;
+    else {
+      cerr << "Undefined jet selection method: " << method_str << endl;
+      return 1;
+    }
+
+    // Necessary options ----------------------------------
+    if (!vm.count("input"))
+    { cerr << "Missing command --input,-i" << endl; return 1; }
+    if (!vm.count("output"))
+    { cerr << "Missing command --output,-o" << endl; return 1; }
+    if (!vm.count("method"))
+    { cerr << "Missing command --method,-m" << endl; return 1; }
+    if (!vm.count("cone-radius"))
+    { cerr << "Missing command --cone-radius,-r" << endl; return 1; }
+
+  } catch(exception& e) {
+    cerr << "Arguments error: " <<  e.what() << endl;
+    return 1;
+  }
+  // END OPTIONS ****************************************************
+
+  // output file stream
+  ofstream dat(output_file, ofstream::binary);
+
+  dat.write((char*)&cone_r, sizeof(float)); // cone radius
+
+  { // placeholders, filled later
+    size_t blank = 0;
+    dat.write((char*)&blank, sizeof(size_t)); // number of jets
   }
 
   // ****************************************************************
-  // Reading input root file argv[1] with tree STDHEP
+  // Read input root file with tree STDHEP
   // ****************************************************************
 
-  TFile *file = new TFile(argv[1],"READ");
-  TTree *tree = (TTree*)file->Get("STDHEP");
+  TFile *fin = new TFile(input_file.c_str(),"READ");
+  TTree *tree = (TTree*)fin->Get("STDHEP");
 
   const Int_t kMaxEvent = 1;
-  const Int_t kMaxGenParticle = 1205;
-  int exception = 0;
+  const Int_t kMaxGenParticle = _kMaxGenParticle;
 
   // Variables ******************************************************
 
@@ -122,180 +229,79 @@ int main(int argc, char *argv[])
   tree->SetBranchStatus("GenParticle.Py",1);
   tree->SetBranchStatus("GenParticle.Pz",1);
 
-  tree->SetBranchStatus("GenParticle.M1",1);
-  tree->SetBranchStatus("GenParticle.M2",1);
+//  tree->SetBranchStatus("GenParticle.M1",1);
+//  tree->SetBranchStatus("GenParticle.M2",1);
 
   // ****************************************************************
   // Loop over input root file entries
   // ****************************************************************
 
+  clock_t last_time = clock();
+  short num_sec = 0; // seconds elapsed
+
+  size_t selected = 0;
   const Long64_t nEnt = tree->GetEntriesFast();
-  int chi2[3] = {0};
-  int dchi2[3] = {0};
-  int log[3] = {0};
-  int dlog[3] = {0};
-  int nHiggs = 0, nGluon = 0, nQuark = 0;
-  int gFalse[4]={0}, qFalse[4]={0}, hFalse[4]={0};
+  cout << "Events: " << nEnt << endl;
+
   for (Long64_t ent=0; ent<nEnt; ++ent) {
-    try{
-        tree->GetEntry(ent);
-    
-        // Collect Final State particles
-        vector<PseudoJet> particles; // unclustered final state particles
-    
-        // store info about shower to pass to FastJet
-        jep::shower_info::init(GenParticle_);
+    tree->GetEntry(ent);
 
-        for (Int_t i=0; i<GenParticle_; ++i) {
-          jep::shower_info *user_info =
-          jep::shower_info::add(i, GenParticle_PID[i], GenParticle_Status[i],
-                                GenParticle_M1[i], GenParticle_M2[i]);
+    // Collect Final State particles
+    vector<PseudoJet> particles; // unclustered final state particles
 
-          // skip if not final state particle
-          if ( GenParticle_Status[i] != 1 ) continue;
-    
-          PseudoJet particle(
-            GenParticle_Px[i],GenParticle_Py[i],GenParticle_Pz[i],GenParticle_E[i]
-          );
-          particle.set_user_index(i);
-          particle.set_user_info (user_info);
-          particles.push_back( particle );
-        }
-    
-        // AntiKt4 Clustering Algorithm
-        ClusterSequence cs(particles, JetDefinition(antikt_algorithm, 1.0) );
-    
-        // Sort jets by Pt
-        vector<PseudoJet> jets = sorted_by_pt(cs.inclusive_jets());
+    for (Int_t i=0; i<GenParticle_; ++i) {
+      // skip if not final state particle
+      if ( GenParticle_Status[i] != 1 ) continue;
 
-        int goodcnt = 0;
-    
-        for(unsigned int k=0; k < 5; k++){
-            if(jets[k].Et() < 100) continue;
-            jep::jet_validator jv(jets[k],5);
-            bool is_higgs = jv.is_from_higgs_bb();
-//            if(!is_higgs) continue;
-            bool within_cone = true;
-            vector<double> prof = jep::profile(jets[k], 1.0, 0.1, 10, within_cone, 0.1,false);
-        
-            for (unsigned char i=0; i<10; ++i) {
-              prof[i] = prof[i]/prof[prof.size()-1];
-            }
-        
-/*            if(is_gluon) {
-                nGluon++;
-            } else if(is_quark) {
-                nQuark++;
-            } else if(is_higgs) {
-                nHiggs++;
-            }*/
-            if(is_higgs) {
-                nHiggs++;
-            }
-            for(int j=1; j<5; j++){
-                vector<val_t> stats = statistics(j, prof, jets[k].Et(), 1.0);
-                // Gluon is best
-                if(stats[0] < stats[1] && stats[0] < stats[2]) {
-                    switch (j) {
-                        case 1:
-                            if(is_higgs) gFalse[0]++;
-                            chi2[0]++;
-                            break;
-                        case 2:
-                            if(is_higgs) gFalse[1]++;
-                            dchi2[0]++;
-                            break;
-                        case 3:
-                            if(is_higgs) gFalse[2]++;
-                            log[0]++;
-                            break;
-                        case 4:
-                            if(is_higgs) gFalse[3]++;
-                            dlog[0]++;
-                            break;
-                    }
-                // Quark is best
-                } else if(stats[1] < stats[0] && stats[1] < stats[2]) {
-                    switch (j) {
-                        case 1:
-                            if(is_higgs) qFalse[0]++;
-                            chi2[1]++;
-                            break;
-                        case 2:
-                            if(is_higgs) qFalse[1]++;
-                            dchi2[1]++;
-                            break;
-                        case 3:
-                            if(is_higgs) qFalse[2]++;
-                            log[1]++;
-                            break;
-                        case 4:
-                            if(is_higgs) qFalse[3]++;
-                            dlog[1]++;
-                            break;
-                    }
-                // Higgs is best
-                } else if(stats[2] < stats[1] && stats[2] < stats[0]) {
-                    switch (j) {
-                        case 1:
-                            if(!is_higgs) {
-                                hFalse[0]++;
-                            }
-                            chi2[2]++;
-                            break;
-                        case 2:
-                            if(!is_higgs) {
-                                hFalse[1]++;
-                            }
-                            dchi2[2]++;
-                            break;
-                        case 3:
-                            if(!is_higgs) {
-                                hFalse[2]++;
-                            }
-                            log[2]++;
-                            break;
-                        case 4:
-                            if(!is_higgs) {
-                                hFalse[3]++;
-                            }
-                            dlog[2]++;
-                            break;
-                    }
-                } else {
-                    cout << "NO BEST for stat test " << j << endl;
-                    cout << "Gluon: " << stats[0] << endl;
-                    cout << "Quark: " << stats[1] << endl;
-                    cout << "Higgs: " << stats[2] << endl;
-                }
-            }
-        }
-    }
-    catch (jep::jepex e) {
-        exception++;
+      PseudoJet particle(
+        GenParticle_Px[i],GenParticle_Py[i],GenParticle_Pz[i],GenParticle_E[i]
+      );
+      particle.set_user_index(GenParticle_PID[i]);
+      particles.push_back( particle );
     }
 
-    // clear shower info for the event
-    jep::shower_info::clear();
+    // AntiKt4 Clustering Algorithm
+    ClusterSequence cs(particles, JetDefinition(antikt_algorithm, cone_r) );
+
+    // Sort jets by Pt
+    vector<PseudoJet> jets = sorted_by_pt(cs.inclusive_jets());
+
+    // Do jet selection ***********************************
+
+    if (method == leading_jet) {
+
+      dat << jets[0];
+      ++selected;
+
+    }
+    
+
+    // ****************************************************
+
+    // timed counter
+    if ( (clock()-last_time)/CLOCKS_PER_SEC > 1 ) {
+      ++num_sec;
+      cout << setw(10) << ent
+           << setw( 7) << num_sec << 's';
+      cout.flush();
+      for (char i=0;i<19;++i) cout << '\b';
+      last_time = clock();
+    }
+
   }
+  cout << setw(10) << nEnt
+       << setw( 7) << num_sec << 's' << endl << endl;
 
-  cout << "+-----------------------------------------------------+" << endl;
-  cout << "|" << setw(21) << "|" << setw(10) << "Gluon  " << "|" << setw(10) << "Quark  " << "|" << setw(10) << "Higgs  " << "|" << endl;
-  cout << "+-----------------------------------------------------+" << endl;
-  cout << "|" << setw(20) << "chi^2 " << "|" << setw(10) << chi2[0] << "|" << setw(10) << chi2[1] << "|" << setw(10) << chi2[2] << "|" << endl;
-  cout << "|" << setw(20) << "dchi^2 " <<"|" << setw(10) << dchi2[0] << "|" << setw(10) << dchi2[1] << "|" << setw(10) << dchi2[2] << "|" << endl;
-  cout << "|" << setw(20) << "log " << "|" << setw(10) << log[0] << "|" << setw(10) << log[1] << "|" << setw(10) << log[2] << "|" << endl;
-  cout << "|" << setw(20) << "dlog " << "|" << setw(10) << dlog[0] << "|" << setw(10) << dlog[1] << "|" << setw(10) << dlog[2] << "|" << endl;
-  cout << "|" << setw(20) << "valid " << "|" << setw(10) << nGluon << "|" << setw(10) << nQuark << "|" << setw(10) << nHiggs << "|" << endl;
-  cout << "|" << setw(20) << "false h c^2 " << "|" << setw(10) << gFalse[0] << "|" << setw(10) << qFalse[0] << "|" << setw(10) << hFalse[0] << "|" << endl;
-  cout << "|" << setw(20) << "false h dc^2 " << "|" << setw(10) << gFalse[1] << "|" << setw(10) << qFalse[1] << "|" << setw(10) << hFalse[1] << "|" << endl;
-  cout << "|" << setw(20) << "false h log " << "|" << setw(10) << gFalse[2] << "|" << setw(10) << qFalse[2] << "|" << setw(10) << hFalse[2] << "|" << endl;
-  cout << "|" << setw(20) << "false h dlog " << "|" << setw(10) << gFalse[3] << "|" << setw(10) << qFalse[3] << "|" << setw(10) << hFalse[3] << "|" << endl;
-  cout << "+-----------------------------------------------------+" << endl << endl;
-  cout << "exceptions: " << exception << endl;
+  fin->Close();
+  delete fin;
 
-  file->Close();
-  delete file;
+  dat.flush();
+
+  cout << selected << " jets selected" << endl;
+  dat.seekp(sizeof(float), std::ios::beg);
+  dat.write((char*)&selected, sizeof(size_t)); // number of jets
+
+  dat.close();
 
   return 0;
 }

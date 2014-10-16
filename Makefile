@@ -25,12 +25,13 @@ LHAPDF_CONFIG  := $(LHAPDF_INSTALL)/bin/lhapdf-config
 LHAPDF_FLAGS   := $(shell $(LHAPDF_CONFIG) --cppflags)
 LHAPDF_LIBS    := -Wl,-rpath=$(LHAPDF_INSTALL)/lib $(shell $(LHAPDF_CONFIG) --ldflags)
 
-.PHONY: all clean backup
+.PHONY: all clean deepclean backup
 
 EXE := bin/test_write bin/test_ascii bin/test_interp \
-       bin/test_plot bin/test_single_event bin/test_profile \
-       bin/test_statistics \
-       bin/write_data
+       bin/test_jepfile_plot bin/test_single_event bin/test_profile \
+       bin/test_statistics bin/test_stat2 \
+       bin/jet_selection
+#       bin/write_data
 
 all: $(DIRS) $(EXE)
 
@@ -51,7 +52,7 @@ lib/jep_jet_alg.o: lib/jep_%.o: jep/%.cc jep/%.h
 # shower graph
 lib/shower_graph_boost.o: lib/shower_%.o: shower/%.cc shower/%.h
 	@echo -e "Compiling \E[0;49;96m"$@"\E[0;0m ... "
-	@$(CPP) $(CFLAGS) -c $(filter %.cc,$^) -o $@ -lboost_graph
+	@$(CPP) $(CFLAGS) -c $(filter %.cc,$^) -o $@
 
 lib/shower_graph_dot.o: lib/shower_%.o: shower/%.cc shower/%.h
 	@echo -e "Compiling \E[0;49;96m"$@"\E[0;0m ... "
@@ -67,11 +68,11 @@ lib/test_write.o lib/test_ascii.o lib/test_interp.o: lib/%.o: test/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m ... "
 	@$(CPP) $(CFLAGS) -c $(filter %.cc,$^) -o $@
 
-lib/test_plot_theory_profiles.o: lib/%.o: test/%.cc
+lib/test_jepfile_plot.o lib/test_stat2.o: lib/%.o: test/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m ... "
 	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) -c $(filter %.cc,$^) -o $@
 
-lib/test_single_event.o lib/test_profile.o lib/test_statistics.o: lib/%.o: test/%.cc
+lib/test_single_event.o lib/test_profile.o lib/test_statistics.o lib/jet_selection.o: lib/%.o: test/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m ... "
 	@$(CPP) $(CFLAGS) $(FJ_CFLAGS) $(ROOT_CFLAGS) -c $(filter %.cc,$^) -o $@
 
@@ -84,13 +85,17 @@ bin/test_write bin/test_ascii bin/test_interp: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
 	@$(CPP) $(filter %.o,$^) -o $@
 
-bin/test_plot_theory_profiles: bin/%: lib/%.o
+bin/test_jepfile_plot bin/test_stat2: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
 	@$(CPP) $(filter %.o,$^) -o $@ $(ROOT_LIBS)
 
 bin/test_single_event bin/test_profile bin/test_statistics: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
 	@$(CPP) -Wl,--no-as-needed $(filter %.o,$^) -o $@ $(ROOT_LIBS) $(FJ_LIBS)
+
+bin/jet_selection: bin/%: lib/%.o
+	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
+	@$(CPP) -Wl,--no-as-needed $(filter %.o,$^) -o $@ $(ROOT_LIBS) $(FJ_LIBS) -lboost_program_options
 
 bin/write_data: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
@@ -109,20 +114,22 @@ lib/test_ascii.o  : jep/common.h jep/reader.h
 lib/test_single_event.o: jep/jet_alg.h shower/graph_dot.h
 lib/test_profile.o: jep/jet_alg.h
 lib/write_data.o  : jep/common.h jep/writer.h
-lib/test_statistics.o : jep/common.h jep/reader.h jep/statistics.h
+lib/test_statistics.o : jep/common.h jep/reader.h jep/statistics.h jep/jet_alg.h
+lib/test_stat2.o  : jep/common.h jep/reader.h jep/statistics.h
 
 # EXE dependencies
 bin/test_write    : lib/jep_common.o lib/jep_writer.o lib/jep_reader.o
 bin/test_interp   : lib/jep_common.o lib/jep_reader.o
 bin/test_ascii    : lib/jep_common.o lib/jep_reader.o
-bin/test_plot_theory_profiles: lib/jep_common.o lib/jep_reader.o
+bin/test_jepfile_plot: lib/jep_common.o lib/jep_reader.o
 bin/test_single_event: lib/jep_jet_alg.o lib/shower_graph_dot.o
 bin/test_profile  : lib/jep_jet_alg.o
 bin/write_data    : lib/jep_common.o lib/jep_writer.o lib/mod_constant.o lib/mod_terms.o
 bin/test_statistics: lib/jep_common.o lib/jep_reader.o lib/jep_statistics.o lib/jep_jet_alg.o
+bin/test_stat2    : lib/jep_common.o lib/jep_reader.o lib/jep_statistics.o
 
 clean:
-	rm -rf bin lib/jep_* lib/test_* lib/write_*
+	rm -rf bin lib/jep_* lib/test_* lib/write_* lib/jet_selection.o lib/shower_graph_dot.o
 
 deepclean:
 	rm -rf bin lib dat test.*
