@@ -3,11 +3,15 @@
 #include <fstream>
 #include <vector>
 #include <utility>
-#include <map>
 #include <ctime>
 
 #include <TLorentzVector.h>
+#include <TH1.h>
+#include <TCanvas.h>
+#include <TAxis.h>
+#include <TLegend.h>
 
+#include "jep/reader.h"
 #include "jep/statistics.h"
 #include "jep/common.h"
 
@@ -88,12 +92,89 @@ const streamsize jets_file::mom_size = sizeof(double)*4;
 const streamsize jets_file::int_size = sizeof(int);
 const streamsize jets_file::szt_size = sizeof(size_t);
 
+// get jet energy profile
+// ********************************************************
+bool profile(
+  const jet& jet, double* profile_,
+  double r_min, double r_step, unsigned short r_num,
+  double tolerance=0.1, bool warn=true)
+{
+  size_t nconst = jet.size();
+
+  if (!nconst) // if no constituents
+    cerr << "Jet has no constituents" << endl;
+
+  // Does jet have no constituents outside r_max
+  bool within_cone = true;
+
+  // variables
+  size_t ci = 0; // current constituent
+  double ri = 0; // current radius index
+  double rv = r_min; // current radius value
+
+  for (; ci<nconst; ++ci) {
+    if (jet.r[ci]>rv) {
+      ++ri;
+      if (ri==r_num) { // handle overflow
+
+        --ri;
+        for (; ci<nconst; ++ci) {
+          
+        }
+
+        break;
+      }
+      
+      rv += r_step;
+      profile_[ri] = 0.;
+    }
+    profile_[ri] += jet.Et[ci];
+  }
+
+  // loop over constituents
+  for ( vector<PseudoJet>::const_iterator it = constituents.begin();
+        it != constituents.end(); ++it )
+  {
+    cr = it->delta_R(jet); // get constituent radius
+    Et = it->Et(); // get constituent transverse energy
+    pr = r_max; // reset profile radius
+
+    // if constituent is within the radius, add it's energy
+    unsigned short i;
+    for (i = r_num-1;; --i) {
+      if (cr<=pr) E_[i] += Et;
+      else {
+        if (r_num-i==1) { // constituent is outside of jet
+          if ( (cr-r_max)/r_max > tolerance ) { // constituent is outside of tolerance
+            within_cone = false;
+            if (warn)
+              cerr << "<jep::"<<__func__<<':'<<__LINE__
+                   << ">: Jet has a constituent outside r_max="
+                   << r_max << ", with r=" << cr << endl;
+          } else E_[i] += Et; // within tolerance
+        }
+        break;
+      }
+
+      if (i==0) break;
+      pr -= r_step;
+    }
+
+  }
+
+  return E_;
+}
+
+// MAIN *************************************************************
 int main(int argc, char *argv[]){
 
-  if ( argc!=2 ) {
-    cout << "Usage: "<<argv[0]<<" file.jets" << endl;
+  if ( argc!=4 ) {
+    cout << "Usage: "<<argv[0]<<" jets_file.jets profile.jep stat_plots.pdf" << endl;
     return 0;
   }
+
+  jep::reader* f = new jep::reader(argv[2]);
+  const jep::header& h = f->get_header();
 
   jets_file jets(argv[1]);
   jet j;
