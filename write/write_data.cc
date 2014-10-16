@@ -1,14 +1,18 @@
 #include <iostream>
-#include <cmath>
-#include <cstdlib>
-#include <string>
 #include <iomanip>
+#include <cmath>
+#include <string>
+#include <sstream>
+#include <vector>
+
+#include <boost/program_options.hpp>
 
 #include "LHAPDF/LHAPDF.h"
 
 #include "jep/writer.h"
 
 using namespace std;
+namespace po = boost::program_options;
 
 #define test(var) \
   cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << endl;
@@ -37,22 +41,72 @@ inline double calc_terms(int iparton, double r, double R, double E, double alpha
 }
 
 // MAIN *************************************************************
-
 int main(int argc, char** argv)
 {
-  string dir(argc>1 ? argv[1] : "");
-  while (*(dir.end()-2) == '/') dir.resize(dir.size()-1);
-  if (*(--dir.end()) != '/') dir += '/';
-
-  LHAPDF::PDF* pdf = LHAPDF::mkPDF("CT10nnlo",0);
-
+  // START OPTIONS **************************************************
   jep::header head;
-  head.r_num  = 10;
-  head.r_min  = 0.1;
-  head.r_step = 0.1;
-  head.E_num  = 100;
-  head.E_min  = 10;
-  head.E_step = 10;
+  string dir, pdf_name, conf_file;
+
+  vector<string> rec_opt;
+
+  try {
+    // General Options ------------------------------------
+    po::options_description all_opt("Options");
+    all_opt.add_options()
+      ("help,h", "produce help message")
+      ("dir,o", po::value<string>(&dir)->default_value(""), "output files directory")
+
+      ("rnum",  po::value<jep::num_t>(&head.r_num),  "number of r points")
+      ("rmin",  po::value<jep::val_t>(&head.r_min),  "minimum cone radius")
+      ("rstep", po::value<jep::val_t>(&head.r_step), "cone radius increment")
+
+      ("Enum",  po::value<jep::num_t>(&head.E_num),  "number of E points")
+      ("Emin",  po::value<jep::val_t>(&head.E_min),  "minimum jet energy")
+      ("Estep", po::value<jep::val_t>(&head.E_step), "jet energy increment")
+
+      ("pdf", po::value<string>(&pdf_name)->default_value("CT10nnlo"), "LHAPDF::PDF name")
+
+      ("conf,c", po::value<string>(&conf_file), "read configuration file")
+    ;
+
+    po::variables_map vm;
+    po::store(po::parse_command_line(argc, argv, all_opt), vm);
+    po::notify(vm);
+    if (vm.count("conf"))
+      po::store(po::parse_config_file<char>(conf_file.c_str(), all_opt), vm);
+    po::notify(vm);
+
+    // Options Properties ---------------------------------
+    if (argc==1 || vm.count("help")) {
+      cout << all_opt << endl;
+      return 0;
+    }
+
+    // trim dir string
+    while (*(dir.end()-2) == '/') dir.resize(dir.size()-1);
+    if (*(--dir.end()) != '/') dir += '/';
+
+    // Necessary options ----------------------------------
+    rec_opt.push_back("dir");
+    rec_opt.push_back("rnum");
+    rec_opt.push_back("rmin");
+    rec_opt.push_back("rstep");
+    rec_opt.push_back("Enum");
+    rec_opt.push_back("Emin");
+    rec_opt.push_back("Estep");
+
+    for (size_t i=0, size=rec_opt.size(); i<size; ++i) {
+      if (!vm.count(rec_opt[i]))
+      { cerr << "Missing command --" << rec_opt[i] << endl; return 1; }
+    }
+
+  } catch(exception& e) {
+    cerr << "Arguments error: " <<  e.what() << endl;
+    return 1;
+  }
+  // END OPTIONS ****************************************************
+
+  LHAPDF::PDF* pdf = LHAPDF::mkPDF(pdf_name.c_str(),0);
 
   test(head.r_num)
   test(head.r_min)
@@ -76,18 +130,20 @@ int main(int argc, char** argv)
 
   double alphas;
 
-  for (jep::num_t pi; pi<nump; ++pi) { // particle loop
+  for (jep::num_t pi=0; pi<nump; ++pi) { // particle loop
     const jep::particle_t p = particles[pi];
     head.pid = p;
 
     string name(jep::pid_name(p));
     cout << "Particle: " << name << ' ' << setw(2) << p << ' ';
 
-    if (argc>1) name = dir+name;
-    name += ".jep";
-    cout << name << endl;
+    stringstream ss;
+    ss << dir << name << "_R" << head.r_max() << ".jep";
+    const char* fname = ss.str().c_str();
 
-    jep::writer* w = new jep::writer(name.c_str(),head);
+    cout << fname << endl;
+
+    jep::writer* w = new jep::writer(fname,head);
     jep::writer::Er_iter it = w->begin();
 
     do { // E loop

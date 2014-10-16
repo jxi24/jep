@@ -5,7 +5,8 @@ DIRS := lib bin
 
 BAK = BAK/backup`date +%s`.tar.gz
 
-CFLAGS := -Wall -g -I.
+CFLAGS := -Wall -O3 -I.
+CGFLAGS := -Wall -g -I.
 
 ROOT_CFLAGS := $(shell root-config --cflags)
 ROOT_LIBS   := $(shell root-config --libs)
@@ -30,8 +31,8 @@ LHAPDF_LIBS    := -Wl,-rpath=$(LHAPDF_INSTALL)/lib $(shell $(LHAPDF_CONFIG) --ld
 EXE := bin/test_write bin/test_ascii bin/test_interp \
        bin/test_jepfile_plot bin/test_single_event bin/test_profile \
        bin/test_statistics bin/test_stat2 \
-       bin/jet_selection
-#       bin/write_data
+       bin/jet_selection \
+       bin/write_data
 
 all: $(DIRS) $(EXE)
 
@@ -74,7 +75,7 @@ lib/test_jepfile_plot.o lib/test_stat2.o: lib/%.o: test/%.cc
 
 lib/test_single_event.o lib/test_profile.o lib/test_statistics.o lib/jet_selection.o: lib/%.o: test/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m ... "
-	@$(CPP) $(CFLAGS) $(FJ_CFLAGS) $(ROOT_CFLAGS) -c $(filter %.cc,$^) -o $@
+	@$(CPP) $(CGFLAGS) $(FJ_CFLAGS) $(ROOT_CFLAGS) -c $(filter %.cc,$^) -o $@
 
 lib/write_data.o: lib/%.o: write/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m ... "
@@ -99,7 +100,7 @@ bin/jet_selection: bin/%: lib/%.o
 
 bin/write_data: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
-	@$(CPP) $(filter %.o,$^) -o $@ -lgfortran $(CERN_LIB) $(LHAPDF_LIBS)
+	@$(CPP) $(filter %.o,$^) -o $@ -lgfortran $(CERN_LIB) $(LHAPDF_LIBS) -lboost_program_options
 
 # OBJ dependencies
 lib/jep_writer.o  : jep/common.h jep/exception.h

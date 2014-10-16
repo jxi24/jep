@@ -124,7 +124,7 @@ int main(int argc, char *argv[])
   // END OPTIONS ****************************************************
 
   // output file stream
-  ofstream dat(output_file, ofstream::binary);
+  ofstream dat(output_file.c_str(), ofstream::binary);
 
   dat.write((char*)&cone_r, sizeof(float)); // cone radius
 
