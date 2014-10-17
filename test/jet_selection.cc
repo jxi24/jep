@@ -37,6 +37,10 @@ ofstream& operator<<(ofstream& dat, const PseudoJet& jet)
     srt_size = sizeof(short),
     szt_size = sizeof(size_t);
 
+  // write jet Et
+  double jet_Et = jet.Et();
+  dat.write((char*)&jet_Et, dbl_size);
+
   // get jet constituents ( returns object, not reference )
   vector<constit> constituents;
   {
