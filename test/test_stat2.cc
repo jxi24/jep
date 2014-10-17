@@ -5,11 +5,8 @@
 #include <cmath>
 #include <ctime>
 
-#include <TLorentzVector.h>
+#include <TFile.h>
 #include <TH1.h>
-#include <TCanvas.h>
-#include <TAxis.h>
-#include <TLegend.h>
 
 #include "jep/reader.h"
 #include "jep/statistics.h"
@@ -19,7 +16,8 @@
   cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << endl;
 
 using namespace std;
-using namespace jep;
+
+// Read jets file *****************************************
 
 class jets_file;
 
@@ -30,7 +28,7 @@ class jet {
     short pid;
   };
 
-  vector<constit> c; // constituents' 4-momenta & pid
+  vector<constit> c; // constituents
 
 public:
   const double  r(size_t i) const { return c[i].r;   }
@@ -95,8 +93,9 @@ bool profile(
   const jet& jet,
   double* profile_, // array of size h.r_num to return jet energy profile
   const jep::header& h, // to get profile parameters
-  double tol_frac=1.1,  // fractional tolerance for h.r_max()
-  bool warn=true) // print message if constituents outside tolerance
+  bool warn=true, // print message if constituents outside tolerance
+  bool integral=true, // integral profile
+  double tol_frac=1.1)  // fractional tolerance for h.r_max()
 {
   const size_t nconst = jet.size();
   const double r_max_tol = h.r_max()*tol_frac;
@@ -133,17 +132,30 @@ bool profile(
     profile_[ri] += jet.Et(ci);
   }
 
+  if (integral) {
+    for (short i=h.r_num-1; i>=0; --i)
+      for (short k=0; k<i; ++k) profile_[i] += profile_[k];
+    for (short i=0; i<h.r_num; ++i) profile_[i] /= profile_[h.r_num-1];
+  } else {
+    double integral = 0.;
+    for (short i=0; i<h.r_num; ++i) integral += profile_[i];
+    for (short i=0; i<h.r_num; ++i) profile_[i] /= integral;
+  }
+
   return true;
 }
 
-// MAIN *************************************************************
-int main(int argc, char *argv[]){
-
+// MAIN ***************************************************
+int main(int argc, char *argv[])
+{
+  // Arguments ******************************************************
   if ( argc!=4 ) {
-    cout << "Usage: "<<argv[0]<<" jets_file.jets profile.jep stat_plots.pdf" << endl;
+    cout << "Usage: " << argv[0]
+         << " jets_file.jets profile.jep stat_plots.root" << endl;
     return 0;
   }
 
+  // Read files *****************************************************
   jep::reader* f = new jep::reader(argv[2]);
   const jep::header& h = f->get_header();
 
@@ -152,15 +164,32 @@ int main(int argc, char *argv[]){
 
   double prof[h.r_num];
 
+  // average profile
+  double prof_avg[h.r_num];
+  for (jep::num_t i=0; i<h.r_num; ++i) prof_avg[i] = 0.;
+
   clock_t last_time = clock();
   short num_sec = 0; // seconds elapsed
 
-  cout << "Cone R: " << jets.coneR() << endl;
-  cout << "Jets: " << jets.njets() << endl;
+  cout << "Theory cone R: " << h.r_max() << endl;
+  cout << "Data   cone R: " << jets.coneR() << endl;
+  cout << "Number of jets: " << jets.njets() << endl;
+  cout << endl;
 
+  TFile *fout = new TFile(argv[3],"recreate");
+
+  // Book histograms ************************************************
+  TH1F *h_num_const = new TH1F("num_const","",100,0,100);
+        h_num_const->SetTitle("Number of jet constituents");
+  TH1F *h_avg_prof = new TH1F("avg_prof","",h.r_num,h.r_min-h.r_step,h.r_max());
+        h_avg_prof->SetTitle("Average jet energy profile;"
+                             "Cone radius, r;Energy fraction, #psi");
+
+  // Loop over jets *************************************************
+  long njets = 0; // number of processed jets
   while (jets.next(j)) {
 
-    cout << setw(10) << left << "r" << ' ' << "Et" << endl;
+    /*cout << setw(10) << left << "r" << ' ' << "Et" << endl;
     for (size_t i=0, end=j.size(); i<end; ++i) {
       cout << setw(10) << left << j.r(i) << ' ' << j.Et(i) << endl;
     }
@@ -171,7 +200,14 @@ int main(int argc, char *argv[]){
       cout << h.r(i) << ' ' << prof[i] << endl;
     }
 
-    break;
+    break;*/
+
+    profile(j,prof,h,false);
+    for (jep::num_t i=0; i<h.r_num; ++i) prof_avg[i] += prof[i];
+
+    h_num_const->Fill(j.size());
+
+    ++njets;
 
     // timed counter
     if ( (clock()-last_time)/CLOCKS_PER_SEC > 1 ) {
@@ -184,8 +220,19 @@ int main(int argc, char *argv[]){
     }
 
   }
+  cout << right;
   cout << setw(10) << jets.njets()
        << setw( 7) << num_sec << 's' << endl << endl;
+
+  // Fill histograms ************************************************
+  for (jep::num_t i=0; i<h.r_num; ++i) {
+    h_avg_prof->SetBinContent(i+1,prof_avg[i]/njets);
+  }
+
+  // Clean up *******************************************************
+  fout->Write();
+  fout->Close();
+  delete fout;
 
   return 0;
 }
