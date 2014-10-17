@@ -47,8 +47,6 @@ int main(int argc, char** argv)
   jep::header head;
   string dir, pdf_name, conf_file;
 
-  vector<string> rec_opt;
-
   try {
     // General Options ------------------------------------
     po::options_description all_opt("Options");
@@ -87,6 +85,7 @@ int main(int argc, char** argv)
     if (*(--dir.end()) != '/') dir += '/';
 
     // Necessary options ----------------------------------
+    vector<string> rec_opt;
     rec_opt.push_back("dir");
     rec_opt.push_back("rnum");
     rec_opt.push_back("rmin");
