@@ -52,7 +52,8 @@ int main(int argc, char** argv)
     po::options_description all_opt("Options");
     all_opt.add_options()
       ("help,h", "produce help message")
-      ("dir,o", po::value<string>(&dir)->default_value(""), "output files directory")
+      ("dir,o", po::value<string>(&dir)->default_value(""),
+       "output files directory")
 
       ("rnum",  po::value<jep::num_t>(&head.r_num),  "number of r points")
       ("rmin",  po::value<jep::val_t>(&head.r_min),  "minimum cone radius")
@@ -62,7 +63,8 @@ int main(int argc, char** argv)
       ("Emin",  po::value<jep::val_t>(&head.E_min),  "minimum jet energy")
       ("Estep", po::value<jep::val_t>(&head.E_step), "jet energy increment")
 
-      ("pdf", po::value<string>(&pdf_name)->default_value("CT10nnlo"), "LHAPDF::PDF name")
+      ("pdf", po::value<string>(&pdf_name)->default_value("CT10nnlo"),
+       "LHAPDF::PDF name")
 
       ("conf,c", po::value<string>(&conf_file), "read configuration file")
     ;
@@ -86,7 +88,6 @@ int main(int argc, char** argv)
 
     // Necessary options ----------------------------------
     vector<string> rec_opt;
-    rec_opt.push_back("dir");
     rec_opt.push_back("rnum");
     rec_opt.push_back("rmin");
     rec_opt.push_back("rstep");
