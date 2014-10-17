@@ -2,6 +2,7 @@
 #include <iomanip>
 #include <fstream>
 #include <vector>
+#include <utility>
 #include <map>
 #include <ctime>
 #include <exception>
@@ -172,7 +173,7 @@ void chi2(double& stat, double data, double hypoth) {
   stat += sq(hypoth - data)/hypoth;
 }
 
-typedef map<string,jep::reader*>::iterator fjep_iter;
+typedef vector< pair<string,jep::reader*> >::iterator fjep_iter;
 
 // MAIN ***************************************************
 int main(int argc, char *argv[])
@@ -186,32 +187,41 @@ int main(int argc, char *argv[])
   }
 
   // Read files *****************************************************
-  map<string,jep::reader*> fjep;
+  vector< pair<string,jep::reader*> > fjep;
 
-  // loop over jep files arguments
-  cout << "\nJet energy profiles:" << endl;
-  for (int i=3;i<argc;++i) {
-    string arg(argv[i]);
-    size_t col = arg.find_first_of(':');
-    if (col==string::npos) {
-      cerr << "Bad argument " << i << ": " << arg << endl;
-      return 1;
+  { // Parse jep files arguments
+    map<string,string> fjepnames;
+
+    for (int i=3;i<argc;++i) {
+      string arg(argv[i]);
+      size_t col = arg.find_first_of(':');
+      if (col==string::npos) {
+        cerr << "Bad argument " << i << ": " << arg << endl;
+        return 1;
+      }
+      fjepnames[arg.substr(0,col)] = arg.substr(col+1);
     }
-    cout << "  " << arg.substr(0,col) << ": " << arg.substr(col+1) << endl;
-    fjep[arg.substr(0,col)] = new jep::reader(arg.substr(col+1).c_str());
+
+    cout << "\nJet energy profiles:" << endl;
+    for (map<string,string>::iterator it=fjepnames.begin(),
+         end=fjepnames.end(); it!=end; ++it)
+    {
+      cout << "  " << it->first << ": " << it->second << endl;
+      fjep.push_back( make_pair(
+        it->first, new jep::reader(it->second.c_str())
+      ) );
+    }
+    cout << endl;
   }
-  cout << endl;
 
   // reference to the first header
   const jep::header& h = fjep.begin()->second->get_header();
 
-  { // check jep headers compatibility
-    fjep_iter it=fjep.begin(); ++it;
-    for (fjep_iter end=fjep.end(); it!=end; ++it) {
-      if ( h != it->second->get_header() ) {
-        cerr << "Incompatible jep file headers" << endl;
-        return 1;
-      }
+  // check jep headers compatibility
+  for (fjep_iter it=fjep.begin()+1, end=fjep.end(); it!=end; ++it) {
+    if ( h != it->second->get_header() ) {
+      cerr << "Incompatible jep file headers" << endl;
+      return 1;
     }
   }
 
@@ -219,7 +229,7 @@ int main(int argc, char *argv[])
   jet j;
 
   // current profile
-  double prof[h.r_num];
+  double prof[h.r_num], dprof[h.r_num];
 
   // average profile
   double prof_avg[h.r_num];
@@ -236,24 +246,38 @@ int main(int argc, char *argv[])
   TFile *fout = new TFile(argv[2],"recreate");
 
   // Book histograms ************************************************
-  TH1F *h_num_const = new TH1F("num_const","",100,0,100);
+  TH1F *h_num_const = new TH1F("num_const","",100,0,20);
         h_num_const->SetTitle("Number of jet constituents");
   TH1F *h_avg_prof = new TH1F("avg_prof","",h.r_num,h.r_min-h.r_step,h.r_max());
         h_avg_prof->SetTitle("Average jet energy profile;"
                              "Cone radius, r;Energy fraction, #psi");
 
-  map<string,TH1F*> stat_chi2; // !!! change key type
+  map<fjep_iter,TH1F*> stat_chi2, stat_dchi2;
+
   for (fjep_iter it=fjep.begin(), end=fjep.end(); it!=end; ++it) {
-    TH1F *h = new TH1F(("chi2_"+it->first).c_str(),"",100,0,10);
-          h->SetTitle(("#chi^{2} for "+it->first+" hypothesis;#chi^{2};").c_str());
-    stat_chi2[it->first] = h;
+    static TH1F *h;
+
+    h = new TH1F(("chi2_"+it->first).c_str(),"",100,0,100);
+    h->SetTitle(("#chi^{2} for "+it->first+" hypothesis;#chi^{2};").c_str());
+    stat_chi2[it] = h;
+
+    h = new TH1F(("dchi2_"+it->first).c_str(),"",100,0,10);
+    h->SetTitle(("d#chi^{2} for "+it->first+" hypothesis;d#chi^{2};").c_str());
+    stat_dchi2[it] = h;
   }
+
+  ofstream log("stat2_log.txt");
 
   // Loop over jets *************************************************
   long njets = 0; // number of processed jets
   while (jets.next(j)) {
 
-    /*cout << "jet Et = " << j.Et() << endl << endl;
+    // get current jet profile
+    profile(j,prof,h,false); // integral
+    profile(j,dprof,h,false,false); // derivative
+
+/*
+    cout << "jet Et = " << j.Et() << endl << endl;
 
     cout << setw(10) << left << "r" << ' ' << "Et" << endl;
     for (size_t i=0, end=j.size(); i<end; ++i) {
@@ -261,28 +285,48 @@ int main(int argc, char *argv[])
     }
     cout << endl;
 
-    profile(j,prof,h);
     for (jep::num_t i=0;i<h.r_num;++i) {
       cout << h.r(i) << ' ' << prof[i] << endl;
     }
+    cout << endl;
 
-    break;*/
+    for (jep::num_t i=0;i<h.r_num;++i) {
+      cout << h.r(i) << ' ' << dprof[i] << endl;
+    }
+    cout << endl;
 
-    // get current jet profile
-    profile(j,prof,h,false);
+    //break;
+*/
 
     // average jet profile
     for (jep::num_t i=0; i<h.r_num; ++i) prof_avg[i] += prof[i];
 
     // χ² statistic
     for (fjep_iter it=fjep.begin(), end=fjep.end(); it!=end; ++it) {
+      //static double s;
       try {
+
+        // integral profile
         const vector<jep::val_t> hypoth = it->second->psi(j.Et());
-        stat_chi2[it->first]->Fill(
+        stat_chi2[it]->Fill(
           statistic(prof, hypoth.begin(), h.r_num, chi2)
         );
+        //cout << s << endl;
+
+        // derivative profile
+        jep::val_t dhypoth[h.r_num];
+        dhypoth[0] = hypoth[0];
+        for (jep::num_t k=h.r_num-1; k>0; --k) {
+          dhypoth[k] = hypoth[k] - hypoth[k-1];
+        }
+        //for (jep::num_t k=0; k<h.r_num; ++k) test(dhypoth[k])
+        stat_dchi2[it]->Fill(
+          statistic(dprof, dhypoth, h.r_num, chi2)
+        );
+        //cout << s << endl;
+
       } catch (exception& e) {
-        cerr << e.what() << endl;
+        log << e.what() << endl;
       }
     }
 
@@ -291,6 +335,8 @@ int main(int argc, char *argv[])
 
     // Increment successful jets counter
     ++njets;
+
+//break;
 
     // timed counter
     if ( (clock()-last_time)/CLOCKS_PER_SEC > 1 ) {
@@ -316,6 +362,11 @@ int main(int argc, char *argv[])
   fout->Write();
   fout->Close();
   delete fout;
+
+  for (fjep_iter it=fjep.begin(), end=fjep.end(); it!=end; ++it)
+    delete it->second;
+
+  log.close();
 
   return 0;
 }

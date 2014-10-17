@@ -132,8 +132,9 @@ int main(int argc, char *argv[]){
 //  const Long64_t nEnt = tree->GetEntriesFast();
 //  for (Long64_t ent=2; ent<nEnt; ++ent) {
 //    tree->GetEntry(ent);
-  {
-    tree->GetEntry(atoi(argv[1]));
+
+  tree->GetEntry(atoi(argv[1]));
+  if (GenParticle_) { // if there are particles in the event
 
     // Collect Final State particles
     vector<PseudoJet> particles; // unclustered final state particles
@@ -229,6 +230,8 @@ int main(int argc, char *argv[]){
     // clear shower info for the event
     jep::shower_info::clear();
 
+  } else {
+    cout << "Selected event " << argv[1] << " has no particles" << endl;
   }
 
   file->Close();

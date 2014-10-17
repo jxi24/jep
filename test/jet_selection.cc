@@ -260,6 +260,11 @@ int main(int argc, char *argv[])
   for (Long64_t ent=0; ent<nEnt; ++ent) {
     tree->GetEntry(ent);
 
+    if (!GenParticle_) {
+      cerr << "Event " << ent << " has no particles" << endl;
+      continue;
+    }
+
     // Collect Final State particles
     vector<PseudoJet> particles; // unclustered final state particles
 
