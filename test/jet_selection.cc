@@ -19,40 +19,50 @@ using namespace fastjet;
 using namespace std;
 namespace po = boost::program_options;
 
-struct sort_by_r {
-  const PseudoJet& jet;
-  sort_by_r(const PseudoJet& jet): jet(jet) { }
-  bool operator() (const PseudoJet& i, const PseudoJet& j) {
-    return ( jet.delta_R(i) < jet.delta_R(j) );
+struct constit {
+  double r, Et;
+  short pid;
+  constit(double r, double Et, short pid)
+  : r(r), Et(Et), pid(pid) { }
+  // for sorting by r is ascending order
+  bool operator<(const constit& other) const {
+    return ( r < other.r );
   }
 };
 
 ofstream& operator<<(ofstream& dat, const PseudoJet& jet)
 {
   static const streamsize
-    mom_size = sizeof(double)*4,
-    int_size = sizeof(int),
+    dbl_size = sizeof(double),
+    srt_size = sizeof(short),
     szt_size = sizeof(size_t);
 
-  double mom[4] = { jet.E(), jet.px(), jet.py(), jet.pz() };
-  dat.write((char*)&mom, mom_size);
-
   // get jet constituents ( returns object, not reference )
-  vector<PseudoJet> constituents( jet.constituents() );
+  vector<constit> constituents;
+  {
+    vector<PseudoJet> c( jet.constituents() );
+    for (vector<PseudoJet>::iterator it=c.begin(), end=c.end();
+         it<end; ++it)
+    {
+      constituents.push_back( constit(
+        it->delta_R(jet), it->Et(), it->user_index()
+      ) );
+    }
+  }
 
   // sort constituents by delta_R in ascending order
-  sort(constituents.begin(), constituents.end(), sort_by_r(jet));
+  sort(constituents.begin(), constituents.end());
 
   const size_t size = constituents.size();
-  dat.write((char*)&size, szt_size);
+  dat.write((char*)&size, szt_size); // write number of constituents
 
-  if (size>0) for (size_t i=0; i<size; ++i) {
-    double mom[4] = { constituents[i].E (), constituents[i].px(),
-                      constituents[i].py(), constituents[i].pz() };
-    dat.write((char*)&mom, mom_size);
-
-    int pid = constituents[i].user_index();
-    dat.write((char*)&pid, int_size);
+  // write constituents
+  if (size>0) for (vector<constit>::iterator it=constituents.begin(),
+    end=constituents.end(); it<end; ++it)
+  {
+    dat.write((char*)&it->r,   dbl_size);
+    dat.write((char*)&it->Et,  dbl_size);
+    dat.write((char*)&it->pid, srt_size);
   } else {
     cerr << "Jet has no constituents" << endl;
   }

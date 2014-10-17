@@ -31,8 +31,8 @@ LHAPDF_LIBS    := -Wl,-rpath=$(LHAPDF_INSTALL)/lib $(shell $(LHAPDF_CONFIG) --ld
 EXE := bin/test_write bin/test_ascii bin/test_interp \
        bin/test_jepfile_plot bin/test_single_event bin/test_profile \
        bin/test_statistics bin/test_stat2 \
-       bin/jet_selection \
-       bin/write_data
+       bin/jet_selection
+#       bin/write_data
 
 all: $(DIRS) $(EXE)
 

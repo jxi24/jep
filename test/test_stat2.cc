@@ -2,7 +2,7 @@
 #include <iomanip>
 #include <fstream>
 #include <vector>
-#include <utility>
+#include <cmath>
 #include <ctime>
 
 #include <TLorentzVector.h>
@@ -24,17 +24,19 @@ using namespace jep;
 class jets_file;
 
 class jet {
-  TLorentzVector j; // jet 4-momentum
-  vector< pair<TLorentzVector,int> > c; // constituents' 4-momenta & pid
+
+  struct constit {
+    double r, Et;
+    short pid;
+  };
+
+  vector<constit> c; // constituents' 4-momenta & pid
 
 public:
-  const TLorentzVector& mom() const { return j; }
-  const TLorentzVector& operator[](size_t i) const { return c[i].first; }
-  const int pid(size_t i) const { return c[i].second; }
+  const double  r(size_t i) const { return c[i].r;   }
+  const double Et(size_t i) const { return c[i].Et;  }
+  const short pid(size_t i) const { return c[i].pid; }
   size_t size() const { return c.size(); }
-
-  double Et(size_t i) const { return c[i].first.Et(); }
-  double  r(size_t i) const { return j.DeltaR(c[i].first); }
 
 friend class jets_file;
 };
@@ -46,13 +48,13 @@ class jets_file {
   size_t _num_jets;
 
   static const streamsize
-    mom_size, int_size, szt_size;
+    flt_size, dbl_size, srt_size, szt_size;
 
 public:
   jets_file(const char* filename)
   : dat(filename, std::ifstream::binary), _cur_jet(0)
   {
-    dat.read((char*)&_cone_r, sizeof(float));
+    dat.read((char*)&_cone_r,   flt_size);
     dat.read((char*)&_num_jets, szt_size);
   }
 
@@ -63,106 +65,75 @@ public:
   bool next(jet& j) {
     ++_cur_jet;
 
-    if (_cur_jet>=_num_jets) return false;
+    if (_cur_jet>_num_jets) return false;
 
-    j.c.clear();
+    j.c.clear(); // clear jet constituents
 
-    double mom[4];
-    size_t n;
-    int pid;
+    size_t nc; // number of constituents
+    jet::constit c; // current constituent
 
-    dat.read((char*)&mom, mom_size);
-    j.j = TLorentzVector(mom[1],mom[2],mom[3],mom[0]);
-
-    dat.read((char*)&n, szt_size);
-    for (size_t i=0; i<n; ++i) {
-      dat.read((char*)&mom, mom_size);
-      dat.read((char*)&pid, int_size);
-      j.c.push_back(
-        make_pair( TLorentzVector(mom[1],mom[2],mom[3],mom[0]),
-                   pid )
-      );
+    dat.read((char*)&nc, szt_size);
+    for (size_t i=0; i<nc; ++i) {
+      dat.read((char*)&c.r,   dbl_size);
+      dat.read((char*)&c.Et,  dbl_size);
+      dat.read((char*)&c.pid, srt_size);
+      j.c.push_back(c);
     }
 
     return true;
   }
 };
 
-const streamsize jets_file::mom_size = sizeof(double)*4;
-const streamsize jets_file::int_size = sizeof(int);
+const streamsize jets_file::flt_size = sizeof(float);
+const streamsize jets_file::dbl_size = sizeof(double);
+const streamsize jets_file::srt_size = sizeof(short);
 const streamsize jets_file::szt_size = sizeof(size_t);
 
 // get jet energy profile
 // ********************************************************
 bool profile(
-  const jet& jet, double* profile_,
-  double r_min, double r_step, unsigned short r_num,
-  double tolerance=0.1, bool warn=true)
+  const jet& jet,
+  double* profile_, // array of size h.r_num to return jet energy profile
+  const jep::header& h, // to get profile parameters
+  double tol_frac=1.1,  // fractional tolerance for h.r_max()
+  bool warn=true) // print message if constituents outside tolerance
 {
-  size_t nconst = jet.size();
+  const size_t nconst = jet.size();
+  const double r_max_tol = h.r_max()*tol_frac;
 
   if (!nconst) // if no constituents
     cerr << "Jet has no constituents" << endl;
 
-  // Does jet have no constituents outside r_max
-  bool within_cone = true;
-
   // variables
   size_t ci = 0; // current constituent
-  double ri = 0; // current radius index
-  double rv = r_min; // current radius value
+  short  ri = 0; // current radius index
+  double rv = h.r_min; // current radius value
 
   for (; ci<nconst; ++ci) {
-    if (jet.r[ci]>rv) {
+    if (jet.r(ci)>rv) {
       ++ri;
-      if (ri==r_num) { // handle overflow
+      if (ri==h.r_num) { // handle overflow
 
         --ri;
         for (; ci<nconst; ++ci) {
-          
+          if (jet.r(ci)>r_max_tol) {
+            if (warn) cerr << "Jet constituents outside cone" << endl;
+            return false;
+          }
+
+          profile_[ri] += jet.Et(ci);
         }
 
         break;
       }
       
-      rv += r_step;
+      rv += h.r_step;
       profile_[ri] = 0.;
     }
-    profile_[ri] += jet.Et[ci];
+    profile_[ri] += jet.Et(ci);
   }
 
-  // loop over constituents
-  for ( vector<PseudoJet>::const_iterator it = constituents.begin();
-        it != constituents.end(); ++it )
-  {
-    cr = it->delta_R(jet); // get constituent radius
-    Et = it->Et(); // get constituent transverse energy
-    pr = r_max; // reset profile radius
-
-    // if constituent is within the radius, add it's energy
-    unsigned short i;
-    for (i = r_num-1;; --i) {
-      if (cr<=pr) E_[i] += Et;
-      else {
-        if (r_num-i==1) { // constituent is outside of jet
-          if ( (cr-r_max)/r_max > tolerance ) { // constituent is outside of tolerance
-            within_cone = false;
-            if (warn)
-              cerr << "<jep::"<<__func__<<':'<<__LINE__
-                   << ">: Jet has a constituent outside r_max="
-                   << r_max << ", with r=" << cr << endl;
-          } else E_[i] += Et; // within tolerance
-        }
-        break;
-      }
-
-      if (i==0) break;
-      pr -= r_step;
-    }
-
-  }
-
-  return E_;
+  return true;
 }
 
 // MAIN *************************************************************
@@ -179,6 +150,8 @@ int main(int argc, char *argv[]){
   jets_file jets(argv[1]);
   jet j;
 
+  double prof[h.r_num];
+
   clock_t last_time = clock();
   short num_sec = 0; // seconds elapsed
 
@@ -187,7 +160,18 @@ int main(int argc, char *argv[]){
 
   while (jets.next(j)) {
 
-    
+    cout << setw(10) << left << "r" << ' ' << "Et" << endl;
+    for (size_t i=0, end=j.size(); i<end; ++i) {
+      cout << setw(10) << left << j.r(i) << ' ' << j.Et(i) << endl;
+    }
+    cout << endl;
+
+    profile(j,prof,h);
+    for (jep::num_t i=0;i<h.r_num;++i) {
+      cout << h.r(i) << ' ' << prof[i] << endl;
+    }
+
+    break;
 
     // timed counter
     if ( (clock()-last_time)/CLOCKS_PER_SEC > 1 ) {
