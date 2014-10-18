@@ -95,6 +95,79 @@ const streamsize jets_file::dbl_size = sizeof(double);
 const streamsize jets_file::srt_size = sizeof(short);
 const streamsize jets_file::szt_size = sizeof(size_t);
 
+// histogram wrapper
+// ********************************************************
+class hist {
+  pair<int,double> underflow, overflow;
+  TH1F * h;
+
+  struct binning {
+    int nbins; double min, max;
+    binning(): nbins(100), min(0.), max(100.) { }
+  };
+  static map<string,binning> binnings;
+
+  static vector<const hist*> all;
+
+public:
+  hist(): underflow(0,0.), overflow(0,0.), h(NULL) { }
+
+  hist(const string& name,const string& title)
+  : underflow(0,0.), overflow(0,0.)
+  {
+    const binning& b = binnings[name];
+    h = new TH1F(name.c_str(),title.c_str(),b.nbins,b.min,b.max);
+    test(h->GetName())
+
+    all.push_back(this);
+//    for (vector<const hist*>::iterator it=all.begin(), end=all.end(); it<end; ++it)
+//      test((*it)->h->GetName())
+    for (size_t i=0, size=all.size(); i<size; ++i) test(all[i]->h->GetName())
+    cout << endl;
+  }
+  void Fill(double x) {
+    Int_t bin = h->Fill(x);
+    if (h->IsBinUnderflow(bin)) {
+      ++underflow.first;
+      if (x<underflow.second) underflow.second = x;
+    }
+    else if (h->IsBinOverflow(bin)) {
+      ++overflow.first;
+      if (x>overflow.second) overflow.second = x;
+    }
+  }
+
+  static void read_binnings(const char* filename) {
+    ifstream binsfile(filename);
+
+    string hname;
+    binning b;
+    while ( binsfile >> hname ) {
+      binsfile >> b.nbins;
+      binsfile >> b.min;
+      binsfile >> b.max;
+
+      binnings[hname] = b;
+    }
+  }
+
+  static void warnings() {
+    for (vector<const hist*>::iterator it=all.begin(), end=all.end(); it<end; ++it) {
+      const hist* h = *it;
+      //if (h->underflow.first) {
+        cout << "Underflow in " << h->h->GetName()
+             << ": N="<<h->underflow.first << " max="<<h->underflow.second << endl;
+      //}
+      //if (h->overflow.first) {
+        cout << "Overflow in " << h->h->GetName()
+             << ": N="<<h->overflow.first << " max="<<h->overflow.second << endl;
+      //}
+    }
+  }
+};
+map<string,hist::binning> hist::binnings;
+vector<const hist*> hist::all;
+
 // get jet energy profile
 // ********************************************************
 bool profile(
@@ -179,9 +252,9 @@ typedef vector< pair<string,jep::reader*> >::iterator fjep_iter;
 int main(int argc, char *argv[])
 {
   // Arguments ******************************************************
-  if ( argc<4 ) {
+  if ( argc<5 ) {
     cout << "Usage: " << argv[0]
-         << " jets_file.jets stat_plots.root "
+         << " jets_file.jets binning.bins stat_plots.root "
             "gluon:profile1.jep quark:profile2.jep ..." << endl;
     return 0;
   }
@@ -192,7 +265,7 @@ int main(int argc, char *argv[])
   { // Parse jep files arguments
     map<string,string> fjepnames;
 
-    for (int i=3;i<argc;++i) {
+    for (int i=4;i<argc;++i) {
       string arg(argv[i]);
       size_t col = arg.find_first_of(':');
       if (col==string::npos) {
@@ -240,35 +313,33 @@ int main(int argc, char *argv[])
 
   cout << "Theory cone R: " << h.r_max() << endl;
   cout << "Data   cone R: " << jets.coneR() << endl;
-  cout << "Number of jets: " << jets.njets() << endl;
-  cout << endl;
 
-  TFile *fout = new TFile(argv[2],"recreate");
+  TFile *fout = new TFile(argv[3],"recreate");
 
   // Book histograms ************************************************
-  TH1F *h_num_const = new TH1F("num_const","",100,0,20);
-        h_num_const->SetTitle("Number of jet constituents");
+  hist::read_binnings(argv[2]);
+
+  hist h_num_const("num_const","Number of jet constituents");
+
   TH1F *h_avg_prof = new TH1F("avg_prof","",h.r_num,h.r_min-h.r_step,h.r_max());
         h_avg_prof->SetTitle("Average jet energy profile;"
                              "Cone radius, r;Energy fraction, #psi");
 
-  map<fjep_iter,TH1F*> stat_chi2, stat_dchi2;
+  map<fjep_iter,hist> stat_chi2, stat_dchi2;
 
   for (fjep_iter it=fjep.begin(), end=fjep.end(); it!=end; ++it) {
-    static TH1F *h;
+    stat_chi2[it] = hist("chi2_"+it->first,
+                         "#chi^{2} for "+it->first+" hypothesis;#chi^{2};");
 
-    h = new TH1F(("chi2_"+it->first).c_str(),"",100,0,100);
-    h->SetTitle(("#chi^{2} for "+it->first+" hypothesis;#chi^{2};").c_str());
-    stat_chi2[it] = h;
-
-    h = new TH1F(("dchi2_"+it->first).c_str(),"",100,0,10);
-    h->SetTitle(("d#chi^{2} for "+it->first+" hypothesis;d#chi^{2};").c_str());
-    stat_dchi2[it] = h;
+    stat_dchi2[it] = hist("dchi2_"+it->first,
+                          "d#chi^{2} for "+it->first+" hypothesis;d#chi^{2};");
   }
 
   ofstream log("stat2_log.txt");
 
   // Loop over jets *************************************************
+  cout << "Number of jets: " << jets.njets() << endl;
+  cout << endl;
   long njets = 0; // number of processed jets
   while (jets.next(j)) {
 
@@ -308,7 +379,7 @@ int main(int argc, char *argv[])
 
         // integral profile
         const vector<jep::val_t> hypoth = it->second->psi(j.Et());
-        stat_chi2[it]->Fill(
+        stat_chi2[it].Fill(
           statistic(prof, hypoth.begin(), h.r_num, chi2)
         );
         //cout << s << endl;
@@ -320,7 +391,7 @@ int main(int argc, char *argv[])
           dhypoth[k] = hypoth[k] - hypoth[k-1];
         }
         //for (jep::num_t k=0; k<h.r_num; ++k) test(dhypoth[k])
-        stat_dchi2[it]->Fill(
+        stat_dchi2[it].Fill(
           statistic(dprof, dhypoth, h.r_num, chi2)
         );
         //cout << s << endl;
@@ -331,7 +402,7 @@ int main(int argc, char *argv[])
     }
 
     // Fill histograms
-    h_num_const->Fill(j.size());
+    h_num_const.Fill(j.size());
 
     // Increment successful jets counter
     ++njets;
@@ -353,10 +424,12 @@ int main(int argc, char *argv[])
   cout << setw(10) << jets.njets()
        << setw( 7) << num_sec << 's' << endl << endl;
 
-  // Fill histograms ************************************************
+  // Histograms *****************************************************
   for (jep::num_t i=0; i<h.r_num; ++i) {
     h_avg_prof->SetBinContent(i+1,prof_avg[i]/njets);
   }
+
+  hist::warnings();
 
   // Clean up *******************************************************
   fout->Write();
