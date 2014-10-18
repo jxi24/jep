@@ -1,9 +1,9 @@
-num_const 21 -0.5 20.5
+num_const 101 -0.5 100.5
 
 chi2_gluon 100 0 3
-chi2_quark 100 0 2 
-chi2_higgs 100 0 300
+chi2_quark 100 0 3 
+chi2_higgs 100 0 500
 
 dchi2_gluon 100 0 10
 dchi2_quark 100 0 10
-dchi2_higgs 100 0 300
+dchi2_higgs 100 0 500
