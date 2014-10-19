@@ -31,7 +31,8 @@ LHAPDF_LIBS    := -Wl,-rpath=$(LHAPDF_INSTALL)/lib $(shell $(LHAPDF_CONFIG) --ld
 EXE := bin/test_write bin/test_ascii bin/test_interp \
        bin/test_jepfile_plot bin/test_single_event bin/test_profile \
        bin/test_statistics bin/test_stat2 \
-       bin/jet_selection
+       bin/jet_selection \
+       bin/draw_together \
 #       bin/write_data
 
 all: $(DIRS) $(EXE)
@@ -69,7 +70,7 @@ lib/test_write.o lib/test_ascii.o lib/test_interp.o: lib/%.o: test/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m ... "
 	@$(CPP) $(CFLAGS) -c $(filter %.cc,$^) -o $@
 
-lib/test_jepfile_plot.o lib/test_stat2.o: lib/%.o: test/%.cc
+lib/test_jepfile_plot.o lib/test_stat2.o lib/draw_together.o: lib/%.o: test/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m ... "
 	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) -c $(filter %.cc,$^) -o $@
 
@@ -86,7 +87,7 @@ bin/test_write bin/test_ascii bin/test_interp: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
 	@$(CPP) $(filter %.o,$^) -o $@
 
-bin/test_jepfile_plot bin/test_stat2: bin/%: lib/%.o
+bin/test_jepfile_plot bin/test_stat2 bin/draw_together: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
 	@$(CPP) $(filter %.o,$^) -o $@ $(ROOT_LIBS)
 
