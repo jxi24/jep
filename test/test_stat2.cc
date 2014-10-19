@@ -120,7 +120,6 @@ public:
   }
   void Fill(double x) {
     h->Fill(x);
-    //cout << setw(15) << h->GetName() << setw(4) << bin << "  " << x << endl;
     if (x>=b.max) {
       ++overflow.first;
       if (x>overflow.second) overflow.second = x;
@@ -167,10 +166,10 @@ vector<const hist*> hist::all;
 // ********************************************************
 bool profile(
   const jet& jet,
-  double* profile_, // array of size h.r_num to return jet energy profile
+  double* integral_, // array of size h.r_num to return jet energy profile
+  double* derivative_, // array of size h.r_num to return jet energy profile
   const jep::header& h, // to get profile parameters
   bool warn=true, // print message if constituents outside tolerance
-  bool integral=true, // integral profile
   double tol_frac=1.1)  // fractional tolerance for h.r_max()
 {
   const size_t nconst = jet.size();
@@ -196,26 +195,27 @@ bool profile(
             return false;
           }
 
-          profile_[ri] += jet.Et(ci);
+          derivative_[ri] += jet.Et(ci);
         }
 
         break;
       }
       
       rv += h.r_step;
-      profile_[ri] = 0.;
+      derivative_[ri] = 0.;
+      integral_[ri] = 0.;
     }
-    profile_[ri] += jet.Et(ci);
+    derivative_[ri] += jet.Et(ci);
   }
 
-  if (integral) {
-    for (short i=h.r_num-1; i>=0; --i)
-      for (short k=0; k<i; ++k) profile_[i] += profile_[k];
-    for (short i=0; i<h.r_num; ++i) profile_[i] /= profile_[h.r_num-1];
-  } else {
-    double integral = 0.;
-    for (short i=0; i<h.r_num; ++i) integral += profile_[i];
-    for (short i=0; i<h.r_num; ++i) profile_[i] /= integral;
+  // integrate
+  for (short i=0; i<h.r_num; ++i)
+    for (short k=0; k<=i; ++k) integral_[i] += derivative_[k];
+
+  // normalize
+  for (short i=0; i<h.r_num; ++i) {
+    derivative_[i] /= integral_[h.r_num-1];
+    integral_  [i] /= integral_[h.r_num-1];
   }
 
   return true;
@@ -319,15 +319,18 @@ int main(int argc, char *argv[])
   TH1F *h_avg_prof = new TH1F("avg_prof","",h.r_num,h.r_min-h.r_step,h.r_max());
         h_avg_prof->SetTitle("Average jet energy profile;"
                              "Cone radius, r;Energy fraction, #psi");
+        h_avg_prof->SetStats(0);
 
   map<fjep_iter,hist*> stat_chi2, stat_dchi2;
 
   for (fjep_iter it=fjep.begin(), end=fjep.end(); it!=end; ++it) {
-    stat_chi2[it] = new hist("chi2_"+it->first,
-                             "#chi^{2} for "+it->first+" hypothesis;#chi^{2};");
+    stat_chi2[it] = new hist("chi2_I_"+it->first,
+                             "#chi^{2} for "+it->first+" hypothesis "
+                             "with integral profile;#chi^{2};");
 
-    stat_dchi2[it] = new hist("dchi2_"+it->first,
-                              "d#chi^{2} for "+it->first+" hypothesis;d#chi^{2};");
+    stat_dchi2[it] = new hist("chi2_d_"+it->first,
+                              "#chi^{2} for "+it->first+" hypothesis "
+                              "with differential profile;#chi^{2};");
   }
 
   ofstream log("stat2_log.txt");
@@ -339,8 +342,7 @@ int main(int argc, char *argv[])
   while (jets.next(j)) {
 
     // get current jet profile
-    profile(j,prof,h,false); // integral
-    profile(j,dprof,h,false,false); // derivative
+    profile(j,prof,dprof,h,false);
 
 /*
     cout << "jet Et = " << j.Et() << endl << endl;
@@ -361,7 +363,7 @@ int main(int argc, char *argv[])
     }
     cout << endl;
 
-    //break;
+    break;
 */
 
     // average jet profile
@@ -377,7 +379,6 @@ int main(int argc, char *argv[])
         stat_chi2[it]->Fill(
           statistic(prof, hypoth.begin(), h.r_num, chi2)
         );
-        //cout << s << endl;
 
         // derivative profile
         jep::val_t dhypoth[h.r_num];
@@ -385,11 +386,9 @@ int main(int argc, char *argv[])
         for (jep::num_t k=h.r_num-1; k>0; --k) {
           dhypoth[k] = hypoth[k] - hypoth[k-1];
         }
-        //for (jep::num_t k=0; k<h.r_num; ++k) test(dhypoth[k])
         stat_dchi2[it]->Fill(
           statistic(dprof, dhypoth, h.r_num, chi2)
         );
-        //cout << s << endl;
 
       } catch (exception& e) {
         log << e.what() << endl;
@@ -401,8 +400,6 @@ int main(int argc, char *argv[])
 
     // Increment successful jets counter
     ++njets;
-
-//if (njets>20) break;
 
     // timed counter
     if ( (clock()-last_time)/CLOCKS_PER_SEC > 1 ) {
