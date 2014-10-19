@@ -96,4 +96,4 @@ namespace jep {
         return log(logl);
     }
 
-}//End Namespace jep
+} //End Namespace jep

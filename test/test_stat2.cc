@@ -6,6 +6,8 @@
 #include <map>
 #include <ctime>
 #include <exception>
+#include <stdexcept>
+#include <cmath>
 
 #include <TFile.h>
 #include <TH1.h>
@@ -166,22 +168,22 @@ vector<const hist*> hist::all;
 // ********************************************************
 bool profile(
   const jet& jet,
-  double* integral_, // array of size h.r_num to return jet energy profile
-  double* derivative_, // array of size h.r_num to return jet energy profile
+  jep::val_t* integral_, // array of size h.r_num to return jet energy profile
+  jep::val_t* derivative_, // array of size h.r_num to return jet energy profile
   const jep::header& h, // to get profile parameters
   bool warn=true, // print message if constituents outside tolerance
-  double tol_frac=1.1)  // fractional tolerance for h.r_max()
+  jep::val_t tol_frac=1.1)  // fractional tolerance for h.r_max()
 {
   const size_t nconst = jet.size();
-  const double r_max_tol = h.r_max()*tol_frac;
+  const jep::val_t r_max_tol = h.r_max()*tol_frac;
 
   if (!nconst) // if no constituents
-    cerr << "Jet has no constituents" << endl;
+    throw runtime_error("Jet has no constituents");
 
   // variables
-  size_t ci = 0; // current constituent
-  short  ri = 0; // current radius index
-  double rv = h.r_min; // current radius value
+  size_t     ci = 0; // current constituent
+  jep::num_t ri = 0; // current radius index
+  jep::val_t rv = h.r_min; // current radius value
 
   for (; ci<nconst; ++ci) {
     if (jet.r(ci)>rv) {
@@ -223,8 +225,9 @@ bool profile(
 
 // statistics *********************************************
 template<typename D, typename H> // D & H dereference to double
-double statistic(D data, H hypoth, int n, void(*fcn)(double&,double,double)) {
-  double stat = 0.;
+double statistic(D data, H hypoth, int n, void(*fcn)(double&,double,double),
+                 double start=0.) {
+  double stat = start;
   D di = data;
   H hi = hypoth;
   for (int i=0; i<n; ++i) {
@@ -239,6 +242,11 @@ inline double sq(double x) { return x*x; }
 
 void chi2(double& stat, double data, double hypoth) {
   stat += sq(hypoth - data)/hypoth;
+}
+
+void like(double& stat, double data, double hypoth) {
+  if ( data>0. && hypoth>0. )
+    stat *= hypoth/data;
 }
 
 typedef vector< pair<string,jep::reader*> >::iterator fjep_iter;
@@ -297,10 +305,10 @@ int main(int argc, char *argv[])
   jet j;
 
   // current profile
-  double prof[h.r_num], dprof[h.r_num];
+  jep::val_t prof[h.r_num], dprof[h.r_num];
 
   // average profile
-  double prof_avg[h.r_num];
+  jep::val_t prof_avg[h.r_num];
   for (jep::num_t i=0; i<h.r_num; ++i) prof_avg[i] = 0.;
 
   clock_t last_time = clock();
@@ -321,28 +329,54 @@ int main(int argc, char *argv[])
                              "Cone radius, r;Energy fraction, #psi");
         h_avg_prof->SetStats(0);
 
-  map<fjep_iter,hist*> stat_chi2, stat_dchi2;
+  map<fjep_iter,hist*> stat_chi2_I, stat_chi2_d,
+                       stat_like_I, stat_like_d;
 
   for (fjep_iter it=fjep.begin(), end=fjep.end(); it!=end; ++it) {
-    stat_chi2[it] = new hist("chi2_I_"+it->first,
-                             "#chi^{2} for "+it->first+" hypothesis "
-                             "with integral profile;#chi^{2};");
+    stat_chi2_I[it] = new hist(
+      "chi2_I_"+it->first,
+      "#chi^{2} for "+it->first+" hypothesis with integral profile"
+      ";#chi^{2};"
+    );
 
-    stat_dchi2[it] = new hist("chi2_d_"+it->first,
-                              "#chi^{2} for "+it->first+" hypothesis "
-                              "with differential profile;#chi^{2};");
+    stat_chi2_d[it] = new hist(
+      "chi2_d_"+it->first,
+      "#chi^{2} for "+it->first+" hypothesis with differential profile"
+      ";#chi^{2};"
+    );
+
+    stat_like_I[it] = new hist(
+      "like_I_"+it->first,
+      "log L for "+it->first+" hypothesis with integral profile"
+      ";log L;"
+    );
+
+    stat_like_d[it] = new hist(
+      "like_d_"+it->first,
+      "log L for "+it->first+" hypothesis with differential profile"
+      ";log L;"
+    );
   }
 
-  ofstream log("stat2_log.txt");
+  ofstream errlog("stat2_log.txt");
 
   // Loop over jets *************************************************
   cout << "Number of jets: " << jets.njets() << endl;
   cout << endl;
-  long njets = 0; // number of processed jets
+  long njets = -1; // total number jets
+  long ngood =  0; // number of processed jets
   while (jets.next(j)) {
+    ++njets;
 
     // get current jet profile
-    profile(j,prof,dprof,h,false);
+    try {
+
+      profile(j,prof,dprof,h,false);
+
+    } catch (exception& e) {
+      errlog << setw(6) << njets << ' ' << e.what() << endl;
+      continue;
+    }
 
 /*
     cout << "jet Et = " << j.Et() << endl << endl;
@@ -369,37 +403,47 @@ int main(int argc, char *argv[])
     // average jet profile
     for (jep::num_t i=0; i<h.r_num; ++i) prof_avg[i] += prof[i];
 
-    // χ² statistic
+    // calculate statistics
+    bool process_jet = true;
     for (fjep_iter it=fjep.begin(), end=fjep.end(); it!=end; ++it) {
-      //static double s;
       try {
-
-        // integral profile
         const vector<jep::val_t> hypoth = it->second->psi(j.Et());
-        stat_chi2[it]->Fill(
-          statistic(prof, hypoth.begin(), h.r_num, chi2)
-        );
 
-        // derivative profile
         jep::val_t dhypoth[h.r_num];
         dhypoth[0] = hypoth[0];
         for (jep::num_t k=h.r_num-1; k>0; --k) {
           dhypoth[k] = hypoth[k] - hypoth[k-1];
         }
-        stat_dchi2[it]->Fill(
+
+        stat_chi2_I[it]->Fill( // integral chi2
+          statistic(prof, hypoth.begin(), h.r_num, chi2)
+        );
+
+        stat_chi2_d[it]->Fill( // derivative chi2
           statistic(dprof, dhypoth, h.r_num, chi2)
         );
 
+        stat_like_I[it]->Fill( // integral log-likelihood
+          log( statistic(prof, hypoth.begin(), h.r_num, like, 1.) )
+        );
+
+        stat_like_d[it]->Fill( // integral log-likelihood
+          log( statistic(dprof, dhypoth, h.r_num, like, 1.) )
+        );
+
       } catch (exception& e) {
-        log << e.what() << endl;
+        errlog << setw(6) << njets << ' ' << e.what() << endl;
+        process_jet = false;
+        break;
       }
     }
+    if (!process_jet) continue; // skip jet
 
     // Fill histograms
     h_num_const->Fill(j.size());
 
     // Increment successful jets counter
-    ++njets;
+    ++ngood;
 
     // timed counter
     if ( (clock()-last_time)/CLOCKS_PER_SEC > 1 ) {
@@ -415,6 +459,7 @@ int main(int argc, char *argv[])
   cout << right;
   cout << setw(10) << jets.njets()
        << setw( 7) << num_sec << 's' << endl << endl;
+  cout << "Processed " << ngood << " jets" << endl;
 
   // Histograms *****************************************************
   for (jep::num_t i=0; i<h.r_num; ++i) {
@@ -431,7 +476,7 @@ int main(int argc, char *argv[])
   for (fjep_iter it=fjep.begin(), end=fjep.end(); it!=end; ++it)
     delete it->second;
 
-  log.close();
+  errlog.close();
 
   return 0;
 }
