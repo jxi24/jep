@@ -169,7 +169,7 @@ int main(int argc, char *argv[]){
         // Sort jets by Pt
         vector<PseudoJet> jets = sorted_by_pt(cs.inclusive_jets());
 
-        int goodcnt = 0;
+        //int goodcnt = 0;
     
         for(unsigned int k=0; k < 5; k++){
             if(jets[k].Et() < 100) continue;
