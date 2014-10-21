@@ -152,6 +152,8 @@ int main(int argc, char *argv[])
   // ****************************************************************
 
   TFile *fin = new TFile(input_file.c_str(),"READ");
+  if (fin->IsZombie()) return 1;
+
   TTree *tree = (TTree*)fin->Get("STDHEP");
 
   const Int_t kMaxEvent = 1;

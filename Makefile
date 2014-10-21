@@ -33,7 +33,7 @@ EXE := bin/test_write bin/test_ascii bin/test_interp \
        bin/test_statistics bin/test_stat2 bin/test_stat3 \
        bin/jet_selection \
        bin/draw_together \
-#       bin/write_data
+       bin/write_data
 
 all: $(DIRS) $(EXE)
 
@@ -96,9 +96,13 @@ bin/test_write bin/test_ascii bin/test_interp: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
 	@$(CPP) $(filter %.o,$^) -o $@
 
-bin/test_jepfile_plot bin/test_stat2 bin/test_stat3 bin/draw_together: bin/%: lib/%.o
+bin/test_jepfile_plot bin/test_stat2 bin/draw_together: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
 	@$(CPP) $(filter %.o,$^) -o $@ $(ROOT_LIBS)
+
+bin/test_stat3: bin/%: lib/%.o
+	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
+	@$(CPP) $(filter %.o,$^) -o $@ $(ROOT_LIBS) -lboost_regex
 
 bin/test_single_event bin/test_profile bin/test_statistics: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "

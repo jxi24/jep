@@ -3,6 +3,8 @@
 #include <iostream>
 #include <fstream>
 
+#include <boost/regex.hpp>
+
 #include <TH1.h>
 
 using namespace std;
@@ -18,7 +20,7 @@ hist::hist(): b(), underflow(0,0.), overflow(0,0.), h(NULL) { }
 hist::~hist() { } // doesn't delete TH1F* because TFile will do that
 
 hist::hist(const string& name,const string& title)
-: b(binnings[name]), underflow(0,b.min), overflow(0,b.max),
+: b(get_binning(name)), underflow(0,b.min), overflow(0,b.max),
   h( new TH1F(name.c_str(),title.c_str(),b.nbins,b.min,b.max) )
 {
   all.push_back(this);
@@ -35,7 +37,7 @@ void hist::Fill(double x) {
   }
 }
 
-void hist::read_binnings(const char* filename) {
+void hist::read_binnings(const char* filename, const char* regex) {
   ifstream binsfile(filename);
 
   string hname;
@@ -47,6 +49,8 @@ void hist::read_binnings(const char* filename) {
 
     binnings[hname] = b;
   }
+
+  if (regex) binning_name_regex_pattern = regex;
 }
 
 void hist::finish() {
@@ -64,5 +68,19 @@ void hist::finish() {
   }
 }
 
+const hist::binning hist::get_binning(const string& hist_name) {
+  if (binning_name_regex_pattern.size()) {
+
+    static const boost::regex patern(binning_name_regex_pattern);
+
+    boost::smatch result;
+    if (boost::regex_search(hist_name, result, patern))
+      return binnings[string(result[0].first, result[0].second)];
+    else return binning();
+
+  } else return binnings[hist_name];
+}
+
 map<string,hist::binning> hist::binnings;
 vector<const hist*> hist::all;
+string hist::binning_name_regex_pattern;

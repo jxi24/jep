@@ -89,9 +89,15 @@ int main(int argc, char *argv[])
   jep::val_t prof[h.r_num], dprof[h.r_num];
 
   // average profile
-  jep::val_t prof_avg[h.r_num];
-  for (jep::num_t i=0; i<h.r_num; ++i) prof_avg[i] = 0.;
+  jep::val_t prof_avg[n_pt_bins-1][h.r_num];
+  int prof_avg_n[n_pt_bins-1];
+  for (int k=0; k<n_pt_bins-1; ++k) {
+    prof_avg_n[k] = 0;
+    for (jep::num_t i=0; i<h.r_num; ++i)
+      prof_avg[k][i] = 0.;
+  }
 
+  // timing
   clock_t last_time = clock();
   short num_sec = 0; // seconds elapsed
 
@@ -101,47 +107,51 @@ int main(int argc, char *argv[])
   TFile *fout = new TFile(argv[3],"recreate");
 
   // Book histograms ************************************************
-  hist::read_binnings(argv[2]);
+  hist::read_binnings(argv[2],"([[:alnum:]]*)_([[:alnum:]])_([[:alnum:]]*)");
 
   hist *h_num_const = new hist("num_const","Number of jet constituents");
 
-  TH1F *h_avg_prof = new TH1F("avg_prof","",h.r_num,h.r_min-h.r_step,h.r_max());
-        h_avg_prof->SetTitle("Average jet energy profile;"
-                             "Cone radius, r;Energy fraction, #psi");
-        h_avg_prof->SetStats(0);
+  vector<TH1F*> h_avg_prof;
 
   map<fjep_iter,vector<hist*> >
     stat_chi2_I, stat_chi2_d,
     stat_like_I, stat_like_d;
 
-  for (fjep_iter it=fjep.begin(), end=fjep.end(); it!=end; ++it) {
-    for (int i=1; i<n_pt_bins; ++i) {
-      stringstream ss;
-      ss << it->first << "_pt" << pt_bins[i-1] << '_' << pt_bins[i];
+  for (int i=1; i<n_pt_bins; ++i) {
+    stringstream ss;
+    ss << "_pt" << pt_bins[i-1] << '_' << pt_bins[i];
 
-      stat_chi2_I[it].push_back( new hist(
-        "chi2_I_"+ss.str(),
-        "#chi^{2} for "+it->first+" hypothesis with integral profile"
-        ";#chi^{2};"
-      ) );
+    h_avg_prof.push_back( new TH1F(("avg_prof"+ss.str()).c_str(),"",
+                          h.r_num,h.r_min-h.r_step,h.r_max()) );
+    h_avg_prof.back()->SetTitle("Average jet energy profile;"
+                                "Cone radius, r;Energy fraction, #psi");
+    h_avg_prof.back()->SetStats(0);
 
-      stat_chi2_d[it].push_back( new hist(
-        "chi2_d_"+ss.str(),
-        "#chi^{2} for "+it->first+" hypothesis with differential profile"
-        ";#chi^{2};"
-      ) );
+    for (fjep_iter it=fjep.begin(), end=fjep.end(); it!=end; ++it) {
 
-      stat_like_I[it].push_back( new hist(
-        "like_I_"+ss.str(),
-        "log L for "+it->first+" hypothesis with integral profile"
-        ";log L;"
-      ) );
+        stat_chi2_I[it].push_back( new hist(
+          "chi2_I_"+it->first+ss.str(),
+          "#chi^{2} for "+it->first+" hypothesis with integral profile"
+          ";#chi^{2};"
+        ) );
 
-      stat_like_d[it].push_back( new hist(
-        "like_d_"+ss.str(),
-        "log L for "+it->first+" hypothesis with differential profile"
-        ";log L;"
-      ) );
+        stat_chi2_d[it].push_back( new hist(
+          "chi2_d_"+it->first+ss.str(),
+          "#chi^{2} for "+it->first+" hypothesis with differential profile"
+          ";#chi^{2};"
+        ) );
+
+        stat_like_I[it].push_back( new hist(
+          "like_I_"+it->first+ss.str(),
+          "log L for "+it->first+" hypothesis with integral profile"
+          ";log L;"
+        ) );
+
+        stat_like_d[it].push_back( new hist(
+          "like_d_"+it->first+ss.str(),
+          "log L for "+it->first+" hypothesis with differential profile"
+          ";log L;"
+        ) );
     }
   }
 
@@ -203,7 +213,8 @@ int main(int argc, char *argv[])
 */
 
     // average jet profile
-    for (jep::num_t i=0; i<h.r_num; ++i) prof_avg[i] += prof[i];
+    for (jep::num_t i=0; i<h.r_num; ++i) prof_avg[pt_bin][i] += prof[i];
+    ++prof_avg_n[pt_bin];
 
     // calculate statistics
     bool process_jet = true;
@@ -264,8 +275,10 @@ int main(int argc, char *argv[])
   cout << "Processed " << ngood << " jets" << endl;
 
   // Histograms *****************************************************
-  for (jep::num_t i=0; i<h.r_num; ++i) {
-    h_avg_prof->SetBinContent(i+1,prof_avg[i]/njets);
+  for (int k=0; k<n_pt_bins-1; ++k) {
+    if (prof_avg_n[k] > 0)
+      for (jep::num_t i=0; i<h.r_num; ++i)
+        h_avg_prof[k]->SetBinContent(i+1,prof_avg[k][i]/prof_avg_n[k]);
   }
 
   hist::finish();

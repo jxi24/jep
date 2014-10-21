@@ -16,8 +16,11 @@ class hist {
   };
   static std::map<std::string,binning> binnings;
   static std::vector<const hist*> all;
+  static std::string binning_name_regex_pattern;
 
-  binning b;
+  const binning get_binning(const std::string& hist_name);
+
+  const binning b;
   std::pair<int,double> underflow, overflow;
   TH1F * h;
 
@@ -27,7 +30,7 @@ public:
   ~hist();
 
   void Fill(double x);
-  static void read_binnings(const char* filename);
+  static void read_binnings(const char* filename, const char* regex="");
   static void finish();
 };
 
