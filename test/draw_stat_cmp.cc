@@ -17,8 +17,6 @@ using namespace std;
 #define test(var) \
   cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << endl;
 
-const short nf_max = 3;
-
 TCanvas canv;
 
 // key class for map of histograms
@@ -42,7 +40,9 @@ struct mkey {
   bool operator<(const mkey& other) const {
     if ( pt[0] == other.pt[0] ) {
       if ( pt[1] == other.pt[1] ) {
-        return ( pref < other.pref );
+        if ( pref == other.pref ) {
+          return ( name < other.name );
+        } else return ( pref < other.pref );
       } else return ( pt[1] < other.pt[1] );
     } else return ( pt[0] < other.pt[0] );
   }
@@ -114,39 +114,20 @@ public:
   }
 };
 
-// draw chi2_I by hypotheses ******************************
-/*struct draw_chi2_I_hyp {
-  string fname;
-  size_t d;
-  draw_chi2_I_hyp(const char* fname, short data_file_num)
-  : fname(fname), d(data_file_num) { }
-  void operator() (const pair<mkey,vector<TH1*> >& e) const {
+// select chi2_I by hypotheses ****************************
+class chi2_I_hyp: public hist_select {
+public:
+  chi2_I_hyp(): hist_select() { }
+  virtual ~chi2_I_hyp() { }
+  virtual void operator() (const el& e) {
     const mkey& key = e.first;
     const size_t delim = key.pref.rfind('_');
 
-    if (!key.pref.substr(delim).compare("avg_prof")) {
-
-      TH1 * const h = e.second[h];
-
-      canv.Clear();
-      TLegend leg(0.75,0.66,0.95,0.82);
-      leg.SetFillColor(0);
-
-      h->SetLineWidth(2);
-      h->SetLineColor(color[i]);
-      h->SetMarkerColor(color[i]);
-      leg.AddEntry(h[i],Form("%s N=%.0f",names[i],h[i]->GetEntries()));
-      if (i==0) h[i]->Draw();
-      else h[i]->Draw("same");
-      h[0]->SetTitle(Form("Average jet energy profile for "
-                          "%.0f #leq pt < %.0f",key.pt[0],key.pt[1]));
-
-      leg.Draw();
-      canv.SaveAs(fname.c_str());
-
+    if (!key.pref.substr(delim).compare("chi2_I")) {
+      test(key.name)
     }
   }
-};*/
+};
 
 // ********************************************************
 /*struct testfcn {
