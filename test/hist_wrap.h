@@ -31,7 +31,8 @@ public:
 
   void Fill(double x);
   static void read_binnings(const char* filename, const char* regex="");
-  static void finish();
+  static void print_overflow();
+  static void delete_all();
 };
 
 #endif

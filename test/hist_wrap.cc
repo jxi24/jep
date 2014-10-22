@@ -53,7 +53,7 @@ void hist::read_binnings(const char* filename, const char* regex) {
   if (regex) binning_name_regex_pattern = regex;
 }
 
-void hist::finish() {
+void hist::print_overflow() {
   for (vector<const hist*>::iterator it=all.begin(), end=all.end(); it<end; ++it) {
     const hist* h = *it;
     if (h->underflow.first) {
@@ -64,8 +64,12 @@ void hist::finish() {
       cout << "Overflow in " << h->h->GetName()
            << ": N="<<h->overflow.first << " max="<<h->overflow.second << endl;
     }
-    delete h;
   }
+}
+
+void hist::delete_all() {
+  for (vector<const hist*>::iterator it=all.begin(), end=all.end(); it<end; ++it)
+    delete *it;
 }
 
 const hist::binning hist::get_binning(const string& hist_name) {

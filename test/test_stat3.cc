@@ -126,6 +126,7 @@ int main(int argc, char *argv[])
     h_avg_prof.back()->SetTitle("Average jet energy profile;"
                                 "Cone radius, r;Energy fraction, #psi");
     h_avg_prof.back()->SetStats(0);
+    h_avg_prof.back()->SetAxisRange(0,1,"Y");
 
     for (fjep_iter it=fjep.begin(), end=fjep.end(); it!=end; ++it) {
 
@@ -276,12 +277,15 @@ int main(int argc, char *argv[])
 
   // Histograms *****************************************************
   for (int k=0; k<n_pt_bins-1; ++k) {
-    if (prof_avg_n[k] > 0)
-      for (jep::num_t i=0; i<h.r_num; ++i)
+    if (prof_avg_n[k] > 0) {
+      for (jep::num_t i=0; i<h.r_num; ++i) {
         h_avg_prof[k]->SetBinContent(i+1,prof_avg[k][i]/prof_avg_n[k]);
+      }
+      h_avg_prof[k]->SetEntries(prof_avg_n[k]);
+    }
   }
 
-  hist::finish();
+  hist::delete_all();
 
   // Clean up *******************************************************
   fout->Write();

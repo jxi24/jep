@@ -32,8 +32,8 @@ EXE := bin/test_write bin/test_ascii bin/test_interp \
        bin/test_jepfile_plot bin/test_single_event bin/test_profile \
        bin/test_statistics bin/test_stat2 bin/test_stat3 \
        bin/jet_selection \
-       bin/draw_together \
-       bin/write_data
+       bin/draw_together bin/draw_stat_cmp \
+#       bin/write_data
 
 all: $(DIRS) $(EXE)
 
@@ -79,7 +79,7 @@ lib/test_write.o lib/test_ascii.o lib/test_interp.o: lib/%.o: test/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m ... "
 	@$(CPP) $(CFLAGS) -c $(filter %.cc,$^) -o $@
 
-lib/test_jepfile_plot.o lib/test_stat2.o lib/test_stat3.o lib/draw_together.o: lib/%.o: test/%.cc
+lib/test_jepfile_plot.o lib/test_stat2.o lib/test_stat3.o lib/draw_together.o lib/draw_stat_cmp.o: lib/%.o: test/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m ... "
 	@$(CPP) $(CGFLAGS) $(ROOT_CFLAGS) -c $(filter %.cc,$^) -o $@
 
@@ -96,7 +96,7 @@ bin/test_write bin/test_ascii bin/test_interp: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
 	@$(CPP) $(filter %.o,$^) -o $@
 
-bin/test_jepfile_plot bin/test_stat2 bin/draw_together: bin/%: lib/%.o
+bin/test_jepfile_plot bin/test_stat2 bin/draw_together bin/draw_stat_cmp: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
 	@$(CPP) $(filter %.o,$^) -o $@ $(ROOT_LIBS)
 
@@ -132,6 +132,7 @@ lib/write_data.o  : jep/common.h jep/writer.h
 lib/test_statistics.o : jep/common.h jep/reader.h jep/statistics.h jep/jet_alg.h
 lib/test_stat2.o  : jep/common.h jep/reader.h
 lib/test_stat3.o  : jep/common.h jep/reader.h jep/stat2.h test/hist_wrap.h test/jets_file.h
+#lib/test_stat_cmp.o: test/array.h
 
 # EXE dependencies
 bin/test_write    : lib/jep_common.o lib/jep_writer.o lib/jep_reader.o
