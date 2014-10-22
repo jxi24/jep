@@ -1,4 +1,5 @@
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <vector>
 #include <map>
@@ -17,10 +18,6 @@ using namespace std;
   cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << endl;
 
 const short nf_max = 3;
-
-// names, colors, etc.
-const char * const names[3] = {"gluon", "quark", "higgs"};
-const Color_t color[3] = {2,3,4};
 
 TCanvas canv;
 
@@ -41,6 +38,7 @@ struct mkey {
     pt[1] = atof( pt_str.substr(0,pt_str.find('_')).c_str() );
   }
 
+  // comparison operator to sort hists in map by pt
   bool operator<(const mkey& other) const {
     if ( pt[0] == other.pt[0] ) {
       if ( pt[1] == other.pt[1] ) {
@@ -50,41 +48,74 @@ struct mkey {
   }
 };
 
-// draw average profile ***********************************
-struct draw_avg_prof {
-  string fname;
-  draw_avg_prof(const char* fname): fname(fname) { }
-  void operator() (const pair<mkey,vector<TH1*> >& e) const {
-    const mkey& key = e.first;
+// base hist selector class *******************************
+class hist_select {
+protected:
+  vector< pair<string,vector<TH1*> > > h_;
 
-    if (!key.pref.compare("avg_prof")) {
+  static const char * const names[];
+  static const Color_t color[];
 
-      const vector<TH1*>& h = e.second;
+public:
+  hist_select() { }
+  virtual ~hist_select() { }
+
+  typedef pair<mkey,vector<TH1*> > el;
+  virtual void operator() (const el& e) =0;
+
+  virtual void save(const string& fname) {
+
+    canv.SaveAs((fname+'[').c_str());
+    for (size_t a=0, an=h_.size(); a<an; ++a) {
 
       canv.Clear();
       TLegend leg(0.75,0.66,0.95,0.82);
       leg.SetFillColor(0);
 
-      for (size_t i=0, size=h.size(); i<size; ++i) {
-        h[i]->SetLineWidth(2);
-        h[i]->SetLineColor(color[i]);
-        h[i]->SetMarkerColor(color[i]);
-        leg.AddEntry(h[i],Form("%s N=%.0f",names[i],h[i]->GetEntries()));
-        if (i==0) h[i]->Draw();
-        else h[i]->Draw("same");
+      vector<TH1*>& vh = h_[a].second;
+      for (size_t b=0, bn=vh.size(); b<bn; ++b) {
+        TH1 *h = vh[b];
+
+        h->SetLineWidth(2);
+        h->SetLineColor(color[b]);
+        h->SetMarkerColor(color[b]);
+        leg.AddEntry(h,Form("%s N=%.0f",names[b],h->GetEntries()));
+        if (b==0) {
+          h->SetTitle(h_[a].first.c_str());
+          h->Draw();
+        } else h->Draw("same");
       }
-      h[0]->SetTitle(Form("Average jet energy profile for "
-                          "%.0f #leq pt < %.0f",key.pt[0],key.pt[1]));
 
       leg.Draw();
       canv.SaveAs(fname.c_str());
 
     }
+    canv.SaveAs((fname+']').c_str());
+  }
+};
+const char * const hist_select::names[] = {"gluon", "quark", "higgs"};
+const Color_t hist_select::color[] = {2,3,4,5,6,7};
+
+// select average profile hists ***************************
+class avg_prof: public hist_select {
+public:
+  avg_prof(): hist_select() { }
+  virtual ~avg_prof() { }
+  virtual void operator() (const el& e) {
+    const mkey& key = e.first;
+
+    if (!key.pref.compare("avg_prof")) {
+      stringstream ss;
+      ss << "Average jet energy profile for "
+         << key.pt[0] << " #leq pt < " << key.pt[1];
+
+      h_.push_back( make_pair( ss.str(), e.second ) );
+    }
   }
 };
 
 // draw chi2_I by hypotheses ******************************
-struct draw_chi2_I_hyp {
+/*struct draw_chi2_I_hyp {
   string fname;
   size_t d;
   draw_chi2_I_hyp(const char* fname, short data_file_num)
@@ -115,7 +146,7 @@ struct draw_chi2_I_hyp {
 
     }
   }
-};
+};*/
 
 // ********************************************************
 /*struct testfcn {
@@ -146,7 +177,6 @@ int main(int argc, char *argv[])
 
   // container of histograms
   map<mkey,vector<TH1*> > hists;
-  //typedef map<mkey,vector<TH1*> >::iterator iter;
 
   // read files
   for (short i=0;i<nf;++i) {
@@ -162,9 +192,7 @@ int main(int argc, char *argv[])
 
   gStyle->SetOptStat(0);
 
-  canv.SaveAs("avg_prof.pdf[");
-  for_each(hists.begin(), hists.end(), draw_avg_prof("avg_prof.pdf"));
-  canv.SaveAs("avg_prof.pdf]");
+  for_each(hists.begin(), hists.end(), avg_prof()).save("avg_prof.pdf");
 
 
 /*
