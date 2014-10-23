@@ -1,9 +1,12 @@
 #include <iostream>
-#include <sstream>
 #include <string>
 #include <vector>
 #include <map>
-#include <algorithm>
+#include <set>
+#include <stdexcept>
+
+#include <boost/regex.hpp>
+#include <boost/unordered_map.hpp>
 
 #include <TFile.h>
 #include <TKey.h>
@@ -17,126 +20,55 @@ using namespace std;
 #define test(var) \
   cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << endl;
 
-TCanvas canv;
+const char * const data_names[] = {"gluon", "quark", "higgs"};
+const Color_t color[] = {2,3,4,5,6,7};
 
-// key class for map of histograms
-// so they hists are ordered by pt ************************
-struct mkey {
-  string name, pref;
-  double pt[2];
+// key class for map of histograms ************************
+// ******
+template <typename T>
+class tracker {
+public:
+  typedef set<string>::iterator iter;
+  typedef vector<string> key;
 
-  mkey(const string& name): name(name) {
-    // get pt bin edges from the name
-    size_t _pt = this->name.find("_pt");
-    pref = this->name.substr(0,_pt);
-    string pt_str = this->name.substr(_pt+3);
-    size_t delim = pt_str.find('_');
-    pt[0] = atof( pt_str.substr(0,delim).c_str() );
-    pt_str = pt_str.substr(delim+1);
-    pt[1] = atof( pt_str.substr(0,pt_str.find('_')).c_str() );
-  }
+private:
+  size_t n, pos;
+  const boost::regex regex;
 
-  // comparison operator to sort hists in map by pt
-  bool operator<(const mkey& other) const {
-    if ( pt[0] == other.pt[0] ) {
-      if ( pt[1] == other.pt[1] ) {
-        if ( pref == other.pref ) {
-          return ( name < other.name );
-        } else return ( pref < other.pref );
-      } else return ( pt[1] < other.pt[1] );
-    } else return ( pt[0] < other.pt[0] );
-  }
-};
-
-// base hist selector class *******************************
-class hist_select {
-protected:
-  vector< pair<string,vector<TH1*> > > h_;
-
-  static const char * const names[];
-  static const Color_t color[];
+  vector< set<string> > tokens;
+  boost::unordered_map<key,T> _map;
 
 public:
-  hist_select() { }
-  virtual ~hist_select() { }
+  tracker(size_t n, size_t pos, const string& pattern)
+  : n(n), pos(pos), regex(pattern), tokens(n) { }
 
-  typedef pair<mkey,vector<TH1*> > el;
-  virtual void operator() (const el& e) =0;
+  bool match(const string& name, key& k, const T& x) {
+    static boost::smatch result;
+    if ( boost::regex_search(name, result, regex) ) {
+      for (size_t i=1,ni=result.size();i<ni;++i)
+        k[pos+i-1] = string(result[i].first, result[i].second);
 
-  virtual void save(const string& fname) {
-
-    canv.SaveAs((fname+'[').c_str());
-    for (size_t a=0, an=h_.size(); a<an; ++a) {
-
-      canv.Clear();
-      TLegend leg(0.75,0.66,0.95,0.82);
-      leg.SetFillColor(0);
-
-      vector<TH1*>& vh = h_[a].second;
-      for (size_t b=0, bn=vh.size(); b<bn; ++b) {
-        TH1 *h = vh[b];
-
-        h->SetLineWidth(2);
-        h->SetLineColor(color[b]);
-        h->SetMarkerColor(color[b]);
-        leg.AddEntry(h,Form("%s N=%.0f",names[b],h->GetEntries()));
-        if (b==0) {
-          h->SetTitle(h_[a].first.c_str());
-          h->Draw();
-        } else h->Draw("same");
+      _map[k] = x;
+      for (size_t i=0;i<n;++i) {
+        tokens[i].insert( k[i] );
       }
 
-      leg.Draw();
-      canv.SaveAs(fname.c_str());
-
-    }
-    canv.SaveAs((fname+']').c_str());
+      return true;
+    } else return false;
   }
-};
-const char * const hist_select::names[] = {"gluon", "quark", "higgs"};
-const Color_t hist_select::color[] = {2,3,4,5,6,7};
 
-// select average profile hists ***************************
-class avg_prof: public hist_select {
-public:
-  avg_prof(): hist_select() { }
-  virtual ~avg_prof() { }
-  virtual void operator() (const el& e) {
-    const mkey& key = e.first;
+  iter begin(size_t i) const { return tokens.at(i).begin(); }
+  iter   end(size_t i) const { return tokens.at(i).end();   }
 
-    if (!key.pref.compare("avg_prof")) {
+  T& operator[](const key& k) {
+    if ( _map.count(k)==0 ) {
       stringstream ss;
-      ss << "Average jet energy profile for "
-         << key.pt[0] << " #leq pt < " << key.pt[1];
-
-      h_.push_back( make_pair( ss.str(), e.second ) );
-    }
+      ss << "map has no key:";
+      for (size_t i=0;i<n;++i) ss << " ("<<i<<')' << k[i];
+      throw runtime_error(ss.str());
+    } else return _map[k];
   }
 };
-
-// select chi2_I by hypotheses ****************************
-class chi2_I_hyp: public hist_select {
-public:
-  chi2_I_hyp(): hist_select() { }
-  virtual ~chi2_I_hyp() { }
-  virtual void operator() (const el& e) {
-    const mkey& key = e.first;
-    const size_t delim = key.pref.rfind('_');
-
-    if (!key.pref.substr(delim).compare("chi2_I")) {
-      test(key.name)
-    }
-  }
-};
-
-// ********************************************************
-/*struct testfcn {
-  void operator() (const pair<mkey,vector<TH1*> >& e) {
-    test(e.first.name)
-    test(e.first.pref)
-    test(e.second.size())
-  }
-};*/
 
 // MAIN ***************************************************
 int main(int argc, char *argv[])
@@ -156,25 +88,86 @@ int main(int argc, char *argv[])
     if (f[i]->IsZombie()) return 1;
   }
 
-  // container of histograms
-  map<mkey,vector<TH1*> > hists;
+  // trackers of histograms
+  typedef tracker<TH1*> tr;
+  tr avg_prof(2,1,
+    "avg_prof_(pt[[:digit:]]*_[[:digit:]]*)"
+  );
+  tr stat(4,1,
+    "([[:alnum:]]*_[dI])_([[:alpha:]]*)_(pt[[:digit:]]*_[[:digit:]]*)"
+  );
 
   // read files
   for (short i=0;i<nf;++i) {
-    TKey *key;
+    static tr::key mkey2(2), mkey4(4);
+    mkey2[0] = data_names[i];
+
+    static TKey *fkey;
     TIter nextkey(f[i]->GetListOfKeys());
-    while ((key = (TKey*)nextkey())) {
-      TH1 *hist = dynamic_cast<TH1*>( key->ReadObj() );
-      string name(hist->GetName());
-      if (name.find("_pt")==string::npos) continue;
-      hists[name].push_back(hist);
+    while ((fkey = (TKey*)nextkey())) {
+      TH1 *hist = dynamic_cast<TH1*>( fkey->ReadObj() );
+      if ( avg_prof.match(hist->GetName(),mkey2,hist) ) continue;
+      if (     stat.match(hist->GetName(),mkey4,hist) ) continue;
     }
   }
 
+/*
+  for (tr::iter a=avg_prof.begin(1), ae=avg_prof.end(1); a!=ae; ++a)
+    for (tr::iter b=avg_prof.begin(0), be=avg_prof.end(0); b!=be; ++b) {
+      cout << *a << " " << *b << " : ";
+
+      static tr::key key(2);
+      key[1] = *a;
+      key[0] = *b;
+      cout << avg_prof[key]->GetName() << endl;
+    }
+*/
+/*
+  for (tr::iter a=stat.begin(1), ae=stat.end(1); a!=ae; ++a)
+    for (tr::iter b=stat.begin(2), be=stat.end(2); b!=be; ++b)
+      cout << *a << " " << *b << endl;
+*/
+
   gStyle->SetOptStat(0);
+  TCanvas canv;
 
-  for_each(hists.begin(), hists.end(), avg_prof()).save("avg_prof.pdf");
+  canv.SaveAs("avg_prof.pdf[");
+  for (tr::iter a=avg_prof.begin(1), ae=avg_prof.end(1); a!=ae; ++a) {
 
+    canv.Clear();
+    TLegend leg(0.75,0.66,0.95,0.82);
+    leg.SetFillColor(0);
+
+    int c=0;
+    for (tr::iter b=avg_prof.begin(0), be=avg_prof.end(0); b!=be; ++b) {
+
+        static tr::key key(2);
+        key[1] = *a;
+        key[0] = *b;
+        TH1 *h = avg_prof[key];
+
+        h->SetLineWidth(2);
+        h->SetLineColor(color[c]);
+        h->SetMarkerColor(color[c]);
+        leg.AddEntry(h,Form("%s N=%.0f",b->c_str(),h->GetEntries()));
+        if (c==0) {
+          h->SetTitle(("Average jet energy profile for "+*a).c_str());
+          h->Draw();
+        } else h->Draw("same");
+        ++c;
+
+    }
+
+    leg.Draw();
+    canv.SaveAs("avg_prof.pdf");
+
+  }
+  canv.SaveAs("avg_prof.pdf]");
+
+
+
+
+//  for_each(hists.begin(), hists.end(), avg_prof()).save("avg_prof.pdf");
 
 /*
   double ymin = h[0]->GetMinimum(), ymax = h[0]->GetMaximum();
