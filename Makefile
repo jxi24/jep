@@ -132,7 +132,7 @@ lib/write_data.o  : jep/common.h jep/writer.h
 lib/test_statistics.o : jep/common.h jep/reader.h jep/statistics.h jep/jet_alg.h
 lib/test_stat2.o  : jep/common.h jep/reader.h
 lib/test_stat3.o  : jep/common.h jep/reader.h jep/stat2.h test/hist_wrap.h test/jets_file.h
-#lib/test_stat_cmp.o: test/array.h
+lib/draw_stat_cmp.o: test/propmap.h
 
 # EXE dependencies
 bin/test_write    : lib/jep_common.o lib/jep_writer.o lib/jep_reader.o

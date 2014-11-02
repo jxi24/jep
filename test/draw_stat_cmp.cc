@@ -15,6 +15,8 @@
 #include <TLegend.h>
 #include <TStyle.h>
 
+#include "test/propmap.h"
+
 using namespace std;
 
 #define test(var) \
@@ -23,52 +25,49 @@ using namespace std;
 const char * const data_names[] = {"gluon", "quark", "higgs"};
 const Color_t color[] = {2,3,4,5,6,7};
 
-// key class for map of histograms ************************
-// ******
-template <typename T>
-class tracker {
-public:
-  typedef set<string>::iterator iter;
-  typedef vector<string> key;
-
-private:
-  size_t n, pos;
-  const boost::regex regex;
-
-  vector< set<string> > tokens;
-  boost::unordered_map<key,T> _map;
-
-public:
-  tracker(size_t n, size_t pos, const string& pattern)
-  : n(n), pos(pos), regex(pattern), tokens(n) { }
-
-  bool match(const string& name, key& k, const T& x) {
-    static boost::smatch result;
-    if ( boost::regex_search(name, result, regex) ) {
-      for (size_t i=1,ni=result.size();i<ni;++i)
-        k[pos+i-1] = string(result[i].first, result[i].second);
-
-      _map[k] = x;
-      for (size_t i=0;i<n;++i) {
-        tokens[i].insert( k[i] );
-      }
-
-      return true;
-    } else return false;
+class range_p: public prop< pair<float,float> > {
+  pair<float,float> init(const string& s) {
+    const size_t sep = s.find_first_of('_');
+    return make_pair(
+      atof( s.substr(0,sep).c_str() ),
+      atof( s.substr(sep+1).c_str() )
+    );
   }
-
-  iter begin(size_t i) const { return tokens.at(i).begin(); }
-  iter   end(size_t i) const { return tokens.at(i).end();   }
-
-  T& operator[](const key& k) {
-    if ( _map.count(k)==0 ) {
-      stringstream ss;
-      ss << "map has no key:";
-      for (size_t i=0;i<n;++i) ss << " ("<<i<<')' << k[i];
-      throw runtime_error(ss.str());
-    } else return _map[k];
-  }
+public:
+  range_p(const string& s)
+  : prop< pair<float,float> >(init(s)) { }
 };
+// http://stackoverflow.com/questions/1318458/template-specialization-of-template-class
+template<> std::string prop< std::pair<float,float> >::str() const {
+  std::stringstream ss;
+  ss << x.first << ' ' << x.second;
+  return ss.str();
+}
+
+bool parse_avg_prof(const string& name, vector<prop_ptr>& key) {
+  static const boost::regex regex("avg_prof_pt([[:digit:]]*_[[:digit:]]*)");
+  static boost::smatch result;
+  if ( boost::regex_search(name, result, regex) ) {
+    key[1] = new range_p( string(result[1].first, result[1].second) );
+
+    //for (size_t i=0;i<2;++i) test(key[i]->str())
+
+    return true;
+  } else return false;
+}
+
+bool parse_stat(const string& name, vector<prop_ptr>& key) {
+  static const boost::regex regex(
+    "([[:alnum:]]*_[dI])_([[:alpha:]]*)_pt([[:digit:]]*_[[:digit:]]*)");
+  static boost::smatch result;
+  if ( boost::regex_search(name, result, regex) ) {
+    key[1] = new prop<string>( string(result[1].first, result[1].second) );
+    key[2] = new prop<string>( string(result[2].first, result[2].second) );
+    key[3] = new range_p     ( string(result[3].first, result[3].second) );
+
+    return true;
+  } else return false;
+}
 
 // MAIN ***************************************************
 int main(int argc, char *argv[])
@@ -89,25 +88,31 @@ int main(int argc, char *argv[])
   }
 
   // trackers of histograms
-  typedef tracker<TH1*> tr;
-  tr avg_prof(2,1,
-    "avg_prof_(pt[[:digit:]]*_[[:digit:]]*)"
-  );
-  tr stat(4,1,
-    "([[:alnum:]]*_[dI])_([[:alpha:]]*)_(pt[[:digit:]]*_[[:digit:]]*)"
-  );
+  propmap<TH1*> avg_prof(2);
+  propmap<TH1*> stat(4);
+
+  vector<prop_ptr> key2(2);
+  vector<prop_ptr> key4(4);
+
+  key2[0] = new prop<string>("gluon");
+  key4[0] = new prop<string>("gluon");
+
+  test("test")
 
   // read files
   for (short i=0;i<nf;++i) {
-    static tr::key mkey2(2), mkey4(4);
-    mkey2[0] = data_names[i];
-
     static TKey *fkey;
     TIter nextkey(f[i]->GetListOfKeys());
     while ((fkey = (TKey*)nextkey())) {
       TH1 *hist = dynamic_cast<TH1*>( fkey->ReadObj() );
-      if ( avg_prof.match(hist->GetName(),mkey2,hist) ) continue;
-      if (     stat.match(hist->GetName(),mkey4,hist) ) continue;
+      if ( parse_avg_prof(hist->GetName(),key2) ) {
+        avg_prof.insert(key2,hist);
+        continue;
+      }
+      if ( parse_stat(hist->GetName(),key4) ) {
+        stat.insert(key4,hist);
+        continue;
+      }
     }
   }
 
@@ -132,26 +137,26 @@ int main(int argc, char *argv[])
   TCanvas canv;
 
   canv.SaveAs("avg_prof.pdf[");
-  for (tr::iter a=avg_prof.begin(1), ae=avg_prof.end(1); a!=ae; ++a) {
+  pmloop(avg_prof,a,1) {
 
     canv.Clear();
     TLegend leg(0.75,0.66,0.95,0.82);
     leg.SetFillColor(0);
 
     int c=0;
-    for (tr::iter b=avg_prof.begin(0), be=avg_prof.end(0); b!=be; ++b) {
+    pmloop(avg_prof,b,0) {
 
-        static tr::key key(2);
-        key[1] = *a;
-        key[0] = *b;
-        TH1 *h = avg_prof[key];
+        key2[1] = *a;
+        key2[0] = *b;
+        TH1 *h;
+        avg_prof.get(key2,h);
 
         h->SetLineWidth(2);
         h->SetLineColor(color[c]);
         h->SetMarkerColor(color[c]);
-        leg.AddEntry(h,Form("%s N=%.0f",b->c_str(),h->GetEntries()));
+        leg.AddEntry(h,Form("%s N=%.0f",(*b)->str().c_str(),h->GetEntries()));
         if (c==0) {
-          h->SetTitle(("Average jet energy profile for "+*a).c_str());
+          h->SetTitle(("Average jet energy profile for "+(*a)->str()).c_str());
           h->Draw();
         } else h->Draw("same");
         ++c;
