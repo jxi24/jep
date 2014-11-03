@@ -1,0 +1,17 @@
+num_const 51 -0.5 50.5
+
+chi2_I_gluon 100 0 4
+chi2_I_quark 100 0 4 
+chi2_I_higgs 10000 0 500
+
+chi2_d_gluon 100 0 4
+chi2_d_quark 100 0 4
+chi2_d_higgs 10000 0 500
+
+like_I_gluon 100 -4 8
+like_I_quark 100 -4 8
+like_I_higgs 100 -4 8
+
+like_d_gluon 200 -15 720
+like_d_quark 200 -15 720
+like_d_higgs 200 -15 720

@@ -8,10 +8,10 @@ chi2_d_gluon 100 0 4
 chi2_d_quark 100 0 4
 chi2_d_higgs 10000 0 500
 
-like_I_gluon 100 -30 30
-like_I_quark 100 -30 30
-like_I_higgs 100 -30 30
+like_I_gluon 100 -20 20
+like_I_quark 100 -20 20
+like_I_higgs 100 -20 20
 
-like_d_gluon 100 -30 30
-like_d_quark 100 -30 30
-like_d_higgs 100 -30 30
+like_d_gluon 100 -30 300
+like_d_quark 100 -30 300
+like_d_higgs 100 -30 300

@@ -4,6 +4,7 @@
 #include <map>
 #include <set>
 #include <stdexcept>
+//#include <sstream>
 
 #include <boost/regex.hpp>
 #include <boost/unordered_map.hpp>
@@ -14,6 +15,7 @@
 #include <TCanvas.h>
 #include <TLegend.h>
 #include <TStyle.h>
+#include <TAxis.h>
 
 #include "test/propmap.h"
 
@@ -69,6 +71,40 @@ bool parse_stat(const string& name, vector<prop_ptr>& key) {
   } else return false;
 }
 
+double min_in_range(const TH1* h, double xmin, double xmax) {
+  Int_t bmin = h->FindFixBin(xmin);
+  Int_t bmax = h->FindFixBin(xmax);
+  Int_t nbins = h->GetNbinsX();
+  if (bmin==0) ++bmin;
+  if (bmax>nbins) bmax = nbins;
+  double min = h->GetBinContent(bmax);
+  double y;
+  for (Int_t i=bmin; i<bmax; ++i) {
+    y = h->GetBinContent(i);
+    if (y<min) min = y;
+  }
+  return min;
+}
+double max_in_range(const TH1* h, double xmin, double xmax) {
+  Int_t bmin = h->FindFixBin(xmin);
+  Int_t bmax = h->FindFixBin(xmax);
+  Int_t nbins = h->GetNbinsX();
+  if (bmin==0) ++bmin;
+  if (bmax>nbins) bmax = nbins;
+  double max = h->GetBinContent(bmax);
+  double y;
+  for (Int_t i=bmin; i<bmax; ++i) {
+    y = h->GetBinContent(i);
+    if (max<y) max = y;
+  }
+  /*test(xmin)
+  test(bmin)
+  test(xmax)
+  test(bmax)
+  test(max)*/
+  return max;
+}
+
 // MAIN ***************************************************
 int main(int argc, char *argv[])
 {
@@ -94,13 +130,24 @@ int main(int argc, char *argv[])
   vector<prop_ptr> key2(2);
   vector<prop_ptr> key4(4);
 
-  key2[0] = new prop<string>("gluon");
-  key4[0] = new prop<string>("gluon");
-
-  test("test")
-
   // read files
   for (short i=0;i<nf;++i) {
+    switch (i) {
+      case 0: {
+        key2[0] = new prop<string>("gluon");
+        key4[0] = new prop<string>("gluon");
+      } break;
+      case 1: {
+        key2[0] = new prop<string>("quark");
+        key4[0] = new prop<string>("quark");
+      } break;
+      case 2: {
+        key2[0] = new prop<string>("higgs");
+        key4[0] = new prop<string>("higgs");
+      } break;
+      default: return 1; break;
+    }
+
     static TKey *fkey;
     TIter nextkey(f[i]->GetListOfKeys());
     while ((fkey = (TKey*)nextkey())) {
@@ -116,26 +163,10 @@ int main(int argc, char *argv[])
     }
   }
 
-/*
-  for (tr::iter a=avg_prof.begin(1), ae=avg_prof.end(1); a!=ae; ++a)
-    for (tr::iter b=avg_prof.begin(0), be=avg_prof.end(0); b!=be; ++b) {
-      cout << *a << " " << *b << " : ";
-
-      static tr::key key(2);
-      key[1] = *a;
-      key[0] = *b;
-      cout << avg_prof[key]->GetName() << endl;
-    }
-*/
-/*
-  for (tr::iter a=stat.begin(1), ae=stat.end(1); a!=ae; ++a)
-    for (tr::iter b=stat.begin(2), be=stat.end(2); b!=be; ++b)
-      cout << *a << " " << *b << endl;
-*/
-
   gStyle->SetOptStat(0);
   TCanvas canv;
 
+  // ******************************************************
   canv.SaveAs("avg_prof.pdf[");
   pmloop(avg_prof,a,1) {
 
@@ -156,7 +187,7 @@ int main(int argc, char *argv[])
         h->SetMarkerColor(color[c]);
         leg.AddEntry(h,Form("%s N=%.0f",(*b)->str().c_str(),h->GetEntries()));
         if (c==0) {
-          h->SetTitle(("Average jet energy profile for "+(*a)->str()).c_str());
+          h->SetTitle(("Average jet energy profile for pT "+(*a)->str()).c_str());
           h->Draw();
         } else h->Draw("same");
         ++c;
@@ -169,21 +200,68 @@ int main(int argc, char *argv[])
   }
   canv.SaveAs("avg_prof.pdf]");
 
+  // ******************************************************
+  pmloop(stat,origin,0) {
+    //prop_ptr origin = new prop<string>("gluon");
+    key4[0] = *origin;
+    pmloop(stat,method,1) {
+      //prop_ptr method = new prop<string>("chi2_d");
+      key4[1] = *method;
+      string title = key4[0]->str()+' '+key4[1]->str();
+      string file_name = "origin_"+key4[0]->str()+'_'+key4[1]->str()+".pdf";
 
+      canv.SaveAs((file_name+'[').c_str());
+      pmloop(stat,pt,3) {
+        key4[3] = *pt; //new range_p("37_45");
 
+        canv.Clear();
+        TLegend leg(0.75,0.66,0.95,0.82);
+        leg.SetFillColor(0);
 
-//  for_each(hists.begin(), hists.end(), avg_prof()).save("avg_prof.pdf");
+        double xmin, xmax;
+        double ymin, ymax;
+        vector<TH1*> h_;
+        pmloop(stat,hypoth,2) {
+          key4[2] = *hypoth;
 
-/*
-  double ymin = h[0]->GetMinimum(), ymax = h[0]->GetMaximum();
-  for (size_t i=1, size=h.size(); i<size; ++i) {
-    double min = h[i]->GetMinimum(), max = h[i]->GetMaximum();
-    if (min<ymin) ymin = min;
-    if (max>ymax) ymax = max;
+          h_.push_back(NULL);
+          const size_t hi = h_.size()-1;
+          TH1*& h = h_[hi];
+          stat.get(key4,h);
+          //test(h->GetName())
+
+          h->SetLineWidth(2);
+          h->SetLineColor(color[hi]);
+          h->SetMarkerColor(color[hi]);
+          leg.AddEntry(h,Form("%s N=%.0f",key4[2]->str().c_str(),h->GetEntries()));
+          if (hi==0) {
+            xmin = h->GetXaxis()->GetXmin();
+            xmax = h->GetXaxis()->GetXmax();
+            ymin = min_in_range(h,xmin,xmax);
+            ymax = max_in_range(h,xmin,xmax);
+          } else {
+            double min = min_in_range(h,xmin,xmax),
+                   max = max_in_range(h,xmin,xmax);
+            if (min<ymin) ymin = min;
+            if (max>ymax) ymax = max;
+          }
+
+        }
+
+        h_[0]->SetTitle((title+" pT "+key4[3]->str()+" comparison between hypotheses").c_str());
+        h_[0]->SetAxisRange(ymin*1.05,ymax*1.05,"Y");
+        h_[0]->Draw();
+        for (size_t i=1, size=h_.size(); i<size; ++i) {
+          h_[i]->Draw("same");
+        }
+
+        leg.Draw();
+        canv.SaveAs(file_name.c_str());
+
+      }
+      canv.SaveAs((file_name+']').c_str());
+    }
   }
-  h[0]->SetAxisRange(ymin*1.05,ymax*1.05,"Y");
-  h[0]->SetTitle(argv[3]);
-*/
 
   for (short i=0;i<nf;++i) {
     f[i]->Close();
