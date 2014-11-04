@@ -21,19 +21,21 @@ FFLAGS := -ffixed-line-length-none -fno-automatic -O2
 CERN_LIB := -lmathlib
 #CERN_LIB := -L/usr/lib64/cernlib/2006-g77/lib -lmathlib
 
-LHAPDF_INSTALL := /work/raida/isaacs21/LHAPDF/LHAPDF6
-LHAPDF_CONFIG  := $(LHAPDF_INSTALL)/bin/lhapdf-config
-LHAPDF_FLAGS   := $(shell $(LHAPDF_CONFIG) --cppflags)
-LHAPDF_LIBS    := -Wl,-rpath=$(LHAPDF_INSTALL)/lib $(shell $(LHAPDF_CONFIG) --ldflags)
+#LHAPDF_INSTALL := /work/raida/isaacs21/LHAPDF/LHAPDF6
+#LHAPDF_CONFIG  := $(LHAPDF_INSTALL)/bin/lhapdf-config
+#LHAPDF_FLAGS   := $(shell $(LHAPDF_CONFIG) --cppflags)
+#LHAPDF_LIBS    := -Wl,-rpath=$(LHAPDF_INSTALL)/lib $(shell $(LHAPDF_CONFIG) --ldflags)
+LHAPDF_FLAGS   := $(shell lhapdf-config --cppflags)
+LHAPDF_LIBS    := $(shell lhapdf-config --ldflags)
 
 .PHONY: all clean deepclean backup
 
 EXE := bin/test_write bin/test_ascii bin/test_interp \
-       bin/test_jepfile_plot bin/test_single_event bin/test_profile \
+       bin/test_jepfile_plot bin/test_jepfile_plot2 bin/test_single_event bin/test_profile \
        bin/test_statistics bin/test_stat2 bin/test_stat3 \
        bin/jet_selection \
        bin/draw_together bin/draw_stat_cmp \
-#       bin/write_data
+       bin/write_data
 
 all: $(DIRS) $(EXE)
 
@@ -79,7 +81,7 @@ lib/test_write.o lib/test_ascii.o lib/test_interp.o: lib/%.o: test/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m ... "
 	@$(CPP) $(CFLAGS) -c $(filter %.cc,$^) -o $@
 
-lib/test_jepfile_plot.o lib/test_stat2.o lib/test_stat3.o lib/draw_together.o lib/draw_stat_cmp.o: lib/%.o: test/%.cc
+lib/test_jepfile_plot.o lib/test_jepfile_plot2.o lib/test_stat2.o lib/test_stat3.o lib/draw_together.o lib/draw_stat_cmp.o: lib/%.o: test/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m ... "
 	@$(CPP) $(CGFLAGS) $(ROOT_CFLAGS) -c $(filter %.cc,$^) -o $@
 
@@ -96,7 +98,7 @@ bin/test_write bin/test_ascii bin/test_interp: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
 	@$(CPP) $(filter %.o,$^) -o $@
 
-bin/test_jepfile_plot bin/test_stat2 bin/draw_together: bin/%: lib/%.o
+bin/test_jepfile_plot bin/test_jepfile_plot2 bin/test_stat2 bin/draw_together: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
 	@$(CPP) $(filter %.o,$^) -o $@ $(ROOT_LIBS)
 
@@ -126,6 +128,8 @@ lib/jep_statistics.o : jep/common.h jep/exception.h jep/reader.h
 lib/test_write.o  : jep/common.h jep/writer.h jep/reader.h
 lib/test_interp.o : jep/common.h jep/reader.h
 lib/test_ascii.o  : jep/common.h jep/reader.h
+lib/test_jepfile_plot.o: jep/common.h jep/reader.h
+lib/test_jepfile_plot2.o: jep/common.h jep/reader.h
 lib/test_single_event.o: jep/jet_alg.h shower/graph_dot.h
 lib/test_profile.o: jep/jet_alg.h
 lib/write_data.o  : jep/common.h jep/writer.h
@@ -139,6 +143,7 @@ bin/test_write    : lib/jep_common.o lib/jep_writer.o lib/jep_reader.o
 bin/test_interp   : lib/jep_common.o lib/jep_reader.o
 bin/test_ascii    : lib/jep_common.o lib/jep_reader.o
 bin/test_jepfile_plot: lib/jep_common.o lib/jep_reader.o
+bin/test_jepfile_plot2: lib/jep_common.o lib/jep_reader.o
 bin/test_single_event: lib/jep_jet_alg.o lib/shower_graph_dot.o
 bin/test_profile  : lib/jep_jet_alg.o
 bin/write_data    : lib/jep_common.o lib/jep_writer.o lib/mod_constant.o lib/mod_terms.o

@@ -5,6 +5,7 @@
 #include <sstream>
 #include <cmath>
 #include <iomanip>
+#include <algorithm>
 
 #include "jep/exception.h"
 
@@ -152,7 +153,7 @@ std::vector<val_t> reader::psi(val_t E) const {
   }
 
   // vector of interpolated values
-  std::vector<val_t> psis(head.r_num,0);
+  std::vector<val_t> psis(head.r_num);
 
   for (num_t r=0;r<head.r_num;++r) { // radia
     val_t psi_n[interp_n];
@@ -164,6 +165,25 @@ std::vector<val_t> reader::psi(val_t E) const {
   }
 
   return psis;
+}
+
+std::vector<val_t> reader::psi_avg(num_t Enum, val_t Emin, val_t Emax) const {
+  val_t Estep = (Emax-Emin)/(Enum-1);
+  std::vector<val_t> psi_ret(head.r_num,0.);
+
+  val_t Ene = Emin;
+  for (num_t e=0;e<Enum;++e) {
+    std::vector<val_t> psi_cur = psi(Ene);
+    std::transform(psi_ret.begin(), psi_ret.end(),
+                   psi_cur.begin(), psi_ret.begin(),
+                   std::plus<val_t>() );
+    Ene += Estep;
+  }
+  for (size_t i=0,n=head.r_num;i<n;++i) {
+    psi_ret[i] /= Enum;
+  }
+
+  return psi_ret;
 }
 
 /* Polint: Adapted from Numerical Recipes:

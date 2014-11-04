@@ -109,12 +109,12 @@ double max_in_range(const TH1* h, double xmin, double xmax) {
 int main(int argc, char *argv[])
 {
   // parse arguments
-  if ( argc<2 ) {
+  if ( argc<3 ) {
     cout << "Usage: " << argv[0]
-         << " gluon.root quark.root higgs.root" << endl;
+         << " gluon.root quark.root higgs.root gluon.jep quark.jep higgs.jep" << endl;
     return 0;
   }
-  const short nf = argc-1;
+  const short nf = (argc-1)/2;
 
   // open files
   TFile* f[nf];
