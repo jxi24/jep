@@ -110,11 +110,19 @@ int main(int argc, char *argv[])
 {
   // parse arguments
   if ( argc<3 ) {
-    cout << "Usage: " << argv[0]
-         << " gluon.root quark.root higgs.root gluon.jep quark.jep higgs.jep" << endl;
+    cout << "Usage: " << argv[0] << endl
+         << "  gluon.root quark.root higgs.root ..." << endl
+         << "  gluon.jep  quark.jep  higgs.jep  ..." << endl
+         << "  out_dir" << endl;
     return 0;
   }
   const short nf = (argc-1)/2;
+
+  string dir;
+  if (argc%2==0) {
+    dir = argv[argc-1];
+    if (dir[dir.size()-1]!='/') dir += '/';
+  }
 
   // open files
   TFile* f[nf];
@@ -167,7 +175,9 @@ int main(int argc, char *argv[])
   TCanvas canv;
 
   // ******************************************************
-  canv.SaveAs("avg_prof.pdf[");
+  // Average profiles
+  // ******************************************************
+  canv.SaveAs((dir+"avg_prof.pdf[").c_str());
   pmloop(avg_prof,a,1) {
 
     canv.Clear();
@@ -195,11 +205,13 @@ int main(int argc, char *argv[])
     }
 
     leg.Draw();
-    canv.SaveAs("avg_prof.pdf");
+    canv.SaveAs((dir+"avg_prof.pdf").c_str());
 
   }
-  canv.SaveAs("avg_prof.pdf]");
+  canv.SaveAs((dir+"avg_prof.pdf]").c_str());
 
+  // ******************************************************
+  // Compare hypotheses for the same pseudo-data
   // ******************************************************
   pmloop(stat,origin,0) {
     //prop_ptr origin = new prop<string>("gluon");
@@ -207,8 +219,8 @@ int main(int argc, char *argv[])
     pmloop(stat,method,1) {
       //prop_ptr method = new prop<string>("chi2_d");
       key4[1] = *method;
-      string title = key4[0]->str()+' '+key4[1]->str();
-      string file_name = "origin_"+key4[0]->str()+'_'+key4[1]->str()+".pdf";
+      string title = key4[0]->str()+" pseudo-data: "+key4[1]->str();
+      string file_name = dir+"origin_"+key4[0]->str()+'_'+key4[1]->str()+".pdf";
 
       canv.SaveAs((file_name+'[').c_str());
       pmloop(stat,pt,3) {
@@ -217,6 +229,7 @@ int main(int argc, char *argv[])
         canv.Clear();
         TLegend leg(0.75,0.66,0.95,0.82);
         leg.SetFillColor(0);
+        leg.SetHeader("Hypotheses:");
 
         double xmin, xmax;
         double ymin, ymax;
@@ -248,7 +261,73 @@ int main(int argc, char *argv[])
 
         }
 
-        h_[0]->SetTitle((title+" pT "+key4[3]->str()+" comparison between hypotheses").c_str());
+        h_[0]->SetTitle(( title+" pT "+key4[3]->str() ).c_str());
+        h_[0]->SetAxisRange(ymin*1.05,ymax*1.05,"Y");
+        h_[0]->Draw();
+        for (size_t i=1, size=h_.size(); i<size; ++i) {
+          h_[i]->Draw("same");
+        }
+
+        leg.Draw();
+        canv.SaveAs(file_name.c_str());
+
+      }
+      canv.SaveAs((file_name+']').c_str());
+    }
+  }
+
+  // ******************************************************
+  // Compare the same hypothesis for different pseudo-data
+  // ******************************************************
+  pmloop(stat,hypoth,2) {
+    //prop_ptr origin = new prop<string>("gluon");
+    key4[2] = *hypoth;
+    pmloop(stat,method,1) {
+      //prop_ptr method = new prop<string>("chi2_d");
+      key4[1] = *method;
+      string title = key4[2]->str()+" hypothesis: "+key4[1]->str();
+      string file_name = dir+"hypoth_"+key4[2]->str()+'_'+key4[1]->str()+".pdf";
+
+      canv.SaveAs((file_name+'[').c_str());
+      pmloop(stat,pt,3) {
+        key4[3] = *pt; //new range_p("37_45");
+
+        canv.Clear();
+        TLegend leg(0.75,0.66,0.95,0.82);
+        leg.SetFillColor(0);
+        leg.SetHeader("Pseudo-data:");
+
+        double xmin, xmax;
+        double ymin, ymax;
+        vector<TH1*> h_;
+        pmloop(stat,origin,0) {
+          key4[0] = *origin;
+
+          h_.push_back(NULL);
+          const size_t hi = h_.size()-1;
+          TH1*& h = h_[hi];
+          stat.get(key4,h);
+          //test(h->GetName())
+
+          h->SetLineWidth(2);
+          h->SetLineColor(color[hi]);
+          h->SetMarkerColor(color[hi]);
+          leg.AddEntry(h,Form("%s N=%.0f",key4[0]->str().c_str(),h->GetEntries()));
+          if (hi==0) {
+            xmin = h->GetXaxis()->GetXmin();
+            xmax = h->GetXaxis()->GetXmax();
+            ymin = min_in_range(h,xmin,xmax);
+            ymax = max_in_range(h,xmin,xmax);
+          } else {
+            double min = min_in_range(h,xmin,xmax),
+                   max = max_in_range(h,xmin,xmax);
+            if (min<ymin) ymin = min;
+            if (max>ymax) ymax = max;
+          }
+
+        }
+
+        h_[0]->SetTitle(( title+" pT "+key4[3]->str() ).c_str());
         h_[0]->SetAxisRange(ymin*1.05,ymax*1.05,"Y");
         h_[0]->Draw();
         for (size_t i=1, size=h_.size(); i<size; ++i) {
