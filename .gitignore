@@ -1,0 +1,9 @@
+# compilation output
+bin
+lib
+
+# data files
+*.root
+*.pdf
+data
+out
