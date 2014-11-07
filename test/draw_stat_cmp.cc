@@ -1,13 +1,8 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include <map>
-#include <set>
-#include <stdexcept>
-//#include <sstream>
 
 #include <boost/regex.hpp>
-#include <boost/unordered_map.hpp>
 
 #include <TFile.h>
 #include <TKey.h>
@@ -51,9 +46,6 @@ bool parse_avg_prof(const string& name, vector<prop_ptr>& key) {
   static boost::smatch result;
   if ( boost::regex_search(name, result, regex) ) {
     key[1] = new range_p( string(result[1].first, result[1].second) );
-
-    //for (size_t i=0;i<2;++i) test(key[i]->str())
-
     return true;
   } else return false;
 }
@@ -97,11 +89,6 @@ double max_in_range(const TH1* h, double xmin, double xmax) {
     y = h->GetBinContent(i);
     if (max<y) max = y;
   }
-  /*test(xmin)
-  test(bmin)
-  test(xmax)
-  test(bmax)
-  test(max)*/
   return max;
 }
 
@@ -110,19 +97,17 @@ int main(int argc, char *argv[])
 {
   // parse arguments
   if ( argc<3 ) {
-    cout << "Usage: " << argv[0] << endl
-         << "  gluon.root quark.root higgs.root ..." << endl
-         << "  gluon.jep  quark.jep  higgs.jep  ..." << endl
-         << "  out_dir" << endl;
+    cout << "Usage: " << argv[0]
+         << " gluon.root quark.root higgs.root ... out_dir" << endl;
     return 0;
   }
-  const short nf = (argc-1)/2;
 
-  string dir;
-  if (argc%2==0) {
-    dir = argv[argc-1];
+  string dir(argv[argc-1]);
+  if (dir.substr(dir.size()-6).compare(".root")) {
     if (dir[dir.size()-1]!='/') dir += '/';
-  }
+  } else dir = string();
+
+  const short nf = ( dir.size() ? argc-2 : argc-1 );
 
   // open files
   TFile* f[nf];
@@ -214,17 +199,15 @@ int main(int argc, char *argv[])
   // Compare hypotheses for the same pseudo-data
   // ******************************************************
   pmloop(stat,origin,0) {
-    //prop_ptr origin = new prop<string>("gluon");
     key4[0] = *origin;
     pmloop(stat,method,1) {
-      //prop_ptr method = new prop<string>("chi2_d");
       key4[1] = *method;
       string title = key4[0]->str()+" pseudo-data: "+key4[1]->str();
       string file_name = dir+"origin_"+key4[0]->str()+'_'+key4[1]->str()+".pdf";
 
       canv.SaveAs((file_name+'[').c_str());
       pmloop(stat,pt,3) {
-        key4[3] = *pt; //new range_p("37_45");
+        key4[3] = *pt;
 
         canv.Clear();
         TLegend leg(0.75,0.66,0.95,0.82);
@@ -241,7 +224,6 @@ int main(int argc, char *argv[])
           const size_t hi = h_.size()-1;
           TH1*& h = h_[hi];
           stat.get(key4,h);
-          //test(h->GetName())
 
           h->SetLineWidth(2);
           h->SetLineColor(color[hi]);
@@ -280,17 +262,15 @@ int main(int argc, char *argv[])
   // Compare the same hypothesis for different pseudo-data
   // ******************************************************
   pmloop(stat,hypoth,2) {
-    //prop_ptr origin = new prop<string>("gluon");
     key4[2] = *hypoth;
     pmloop(stat,method,1) {
-      //prop_ptr method = new prop<string>("chi2_d");
       key4[1] = *method;
       string title = key4[2]->str()+" hypothesis: "+key4[1]->str();
       string file_name = dir+"hypoth_"+key4[2]->str()+'_'+key4[1]->str()+".pdf";
 
       canv.SaveAs((file_name+'[').c_str());
       pmloop(stat,pt,3) {
-        key4[3] = *pt; //new range_p("37_45");
+        key4[3] = *pt;
 
         canv.Clear();
         TLegend leg(0.75,0.66,0.95,0.82);
@@ -307,7 +287,6 @@ int main(int argc, char *argv[])
           const size_t hi = h_.size()-1;
           TH1*& h = h_[hi];
           stat.get(key4,h);
-          //test(h->GetName())
 
           h->SetLineWidth(2);
           h->SetLineColor(color[hi]);
