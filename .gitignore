@@ -7,4 +7,5 @@ lib
 *.pdf
 analysis/out
 analysis/theory
+analysis/mc
 stat2_log.txt

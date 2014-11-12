@@ -1,9 +1,10 @@
 SHELL := /bin/bash
 
 BIN := ../bin
-MC  := ../../jep_mc
+MC  := mc
 
 JEP_CFG := R7_CT10nnlo
+JALG := kt
 
 .PHONY: all theory stat_cmp profiles
 
@@ -19,7 +20,7 @@ out/%_theory_profiles.root: theory/%_$(JEP_CFG).jep
 
 out/%_mc.jets: $(MC)/%.root
 	@echo -e "\E[0;49;96mSelecting Monte Carlo jets\E[0;0m"
-	@$(BIN)/jet_selection -i $< -o $@ -m leading-jet -r 0.7
+	@$(BIN)/jet_selection -i $< -o $@ -m leading-jet -r 0.7 --cluster-alg=$(JALG)
 
 out/%_mc_hists.root: out/%_mc.jets
 	@echo -e "\E[0;49;96mGenerating MC statistics histograms\E[0;0m"

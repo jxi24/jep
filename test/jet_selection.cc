@@ -79,7 +79,7 @@ enum method_t { leading_jet };
 int main(int argc, char *argv[])
 {
   // START OPTIONS **************************************************
-  string input_file, output_file, method_str;
+  string input_file, output_file, method_str, cluster_alg;
   int _kMaxGenParticle;
   float cone_r;
   method_t method;
@@ -95,8 +95,10 @@ int main(int argc, char *argv[])
        "output binary file")
       ("method,m", po::value<string>(&method_str),
        "jet selection method")
+      ("cluster-alg", po::value<string>(&cluster_alg)->default_value("antikt"),
+       "jet clustering algorithm: antikt, kt")
       ("cone-radius,r", po::value<float>(&cone_r),
-       "antikt jet clustering cone radius")
+       "clustering cone radius")
 
       ("max-gen", po::value<int>(&_kMaxGenParticle)->default_value(2000),
        "maximum GenParticle_* arrays size in input file")
@@ -248,6 +250,19 @@ int main(int argc, char *argv[])
 //  tree->SetBranchStatus("GenParticle.M1",1);
 //  tree->SetBranchStatus("GenParticle.M2",1);
 
+
+  // Choose Clustering Algorithm
+  fastjet::JetAlgorithm jalg;
+  if (!cluster_alg.compare("antikt")) jalg = antikt_algorithm;
+  else if (!cluster_alg.compare("kt")) jalg = kt_algorithm;
+  else {
+    cout << "Unrecognized jet clustering algorithm "
+         << cluster_alg << endl;
+    return 1;
+  }
+  const JetDefinition jet_def(jalg, cone_r);
+  cout << "\nClustering with " << jet_def.description() << endl << endl;
+
   // ****************************************************************
   // Loop over input root file entries
   // ****************************************************************
@@ -281,8 +296,8 @@ int main(int argc, char *argv[])
       particles.push_back( particle );
     }
 
-    // AntiKt4 Clustering Algorithm
-    ClusterSequence cs(particles, JetDefinition(antikt_algorithm, cone_r) );
+    // Perform clustering
+    ClusterSequence cs(particles, jet_def);
 
     // Sort jets by Pt
     vector<PseudoJet> jets = sorted_by_pt(cs.inclusive_jets());
