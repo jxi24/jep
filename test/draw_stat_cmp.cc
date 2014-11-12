@@ -19,7 +19,7 @@ using namespace std;
 #define test(var) \
   cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << endl;
 
-const char * const data_names[] = {"gluon", "quark", "higgs"};
+const char * const particle_names[] = {"gluon", "quark", "higgs"};
 const Color_t color[] = {2,3,4,5,6,7};
 
 class range_p: public prop< pair<float,float> > {
@@ -39,15 +39,6 @@ template<> std::string prop< std::pair<float,float> >::str() const {
   std::stringstream ss;
   ss << x.first << ' ' << x.second;
   return ss.str();
-}
-
-bool parse_avg_prof(const string& name, vector<prop_ptr>& key) {
-  static const boost::regex regex("avg_prof_pt([[:digit:]]*_[[:digit:]]*)");
-  static boost::smatch result;
-  if ( boost::regex_search(name, result, regex) ) {
-    key[1] = new range_p( string(result[1].first, result[1].second) );
-    return true;
-  } else return false;
 }
 
 bool parse_stat(const string& name, vector<prop_ptr>& key) {
@@ -98,60 +89,48 @@ int main(int argc, char *argv[])
   // parse arguments
   if ( argc<3 ) {
     cout << "Usage: " << argv[0]
-         << " gluon.root quark.root higgs.root ... out_dir" << endl;
+         << " out_dir particle_mc.root ..." << endl;
     return 0;
   }
 
-  string dir(argv[argc-1]);
-  if (dir.substr(dir.size()-6).compare(".root")) {
-    if (dir[dir.size()-1]!='/') dir += '/';
-  } else dir = string();
+  string dir(argv[1]);
+  if (dir[dir.size()-1]!='/') dir += '/';
 
-  const short nf = ( dir.size() ? argc-2 : argc-1 );
+  // property map of root files
+  boost::unordered_map<string,TFile*> files;
 
-  // open files
-  TFile* f[nf];
-  for (short i=0;i<nf;++i) {
-    f[i] = new TFile(argv[i+1],"read");
-    if (f[i]->IsZombie()) return 1;
+  for (int i=2;i<argc;++i) {
+    string name(argv[i]);
+    for (int j=0;j<3;++j) {
+      if (name.find(particle_names[j])!=string::npos) {
+        TFile *f = new TFile(argv[i],"read");
+        if (f->IsZombie()) return 1;
+        files[particle_names[j]] = f;
+      } else if (i==3) {
+        cerr << "File name \'"<<name<<"\' does not specify particle" << endl;
+        return 1;
+      }
+    }
   }
 
-  // trackers of histograms
-  propmap<TH1*> avg_prof(2);
+  // property map of histograms
   propmap<TH1*> stat(4);
+  vector<prop_ptr> hkey(4);
 
-  vector<prop_ptr> key2(2);
-  vector<prop_ptr> key4(4);
-
-  // read files
-  for (short i=0;i<nf;++i) {
-    switch (i) {
-      case 0: {
-        key2[0] = new prop<string>("gluon");
-        key4[0] = new prop<string>("gluon");
-      } break;
-      case 1: {
-        key2[0] = new prop<string>("quark");
-        key4[0] = new prop<string>("quark");
-      } break;
-      case 2: {
-        key2[0] = new prop<string>("higgs");
-        key4[0] = new prop<string>("higgs");
-      } break;
-      default: return 1; break;
-    }
+  // ******************************************************
+  // Read files
+  // ******************************************************
+  for (boost::unordered_map<string,TFile*>::iterator
+       it=files.begin(), end=files.end(); it!=end; ++it)
+  {
+    hkey[0] = new prop<string>(it->first);
 
     static TKey *fkey;
-    TIter nextkey(f[i]->GetListOfKeys());
+    TIter nextkey(it->second->GetListOfKeys());
     while ((fkey = (TKey*)nextkey())) {
       TH1 *hist = dynamic_cast<TH1*>( fkey->ReadObj() );
-      if ( parse_avg_prof(hist->GetName(),key2) ) {
-        avg_prof.insert(key2,hist);
-        continue;
-      }
-      if ( parse_stat(hist->GetName(),key4) ) {
-        stat.insert(key4,hist);
-        continue;
+      if ( parse_stat(hist->GetName(),hkey) ) {
+        stat.insert(hkey,hist);
       }
     }
   }
@@ -160,75 +139,40 @@ int main(int argc, char *argv[])
   TCanvas canv;
 
   // ******************************************************
-  // Average profiles
-  // ******************************************************
-  canv.SaveAs((dir+"avg_prof.pdf[").c_str());
-  pmloop(avg_prof,a,1) {
-
-    canv.Clear();
-    TLegend leg(0.75,0.66,0.95,0.82);
-    leg.SetFillColor(0);
-
-    int c=0;
-    pmloop(avg_prof,b,0) {
-
-        key2[1] = *a;
-        key2[0] = *b;
-        TH1 *h;
-        avg_prof.get(key2,h);
-
-        h->SetLineWidth(2);
-        h->SetLineColor(color[c]);
-        h->SetMarkerColor(color[c]);
-        leg.AddEntry(h,Form("%s N=%.0f",(*b)->str().c_str(),h->GetEntries()));
-        if (c==0) {
-          h->SetTitle(("Average jet energy profile for pT "+(*a)->str()).c_str());
-          h->Draw();
-        } else h->Draw("same");
-        ++c;
-
-    }
-
-    leg.Draw();
-    canv.SaveAs((dir+"avg_prof.pdf").c_str());
-
-  }
-  canv.SaveAs((dir+"avg_prof.pdf]").c_str());
-
-  // ******************************************************
   // Compare hypotheses for the same pseudo-data
   // ******************************************************
   pmloop(stat,origin,0) {
-    key4[0] = *origin;
+    hkey[0] = *origin;
     pmloop(stat,method,1) {
-      key4[1] = *method;
-      string title = key4[0]->str()+" pseudo-data: "+key4[1]->str();
-      string file_name = dir+"origin_"+key4[0]->str()+'_'+key4[1]->str()+".pdf";
+      hkey[1] = *method;
+      string title = hkey[0]->str()+" pseudo-data: "+hkey[1]->str();
+      string file_name = dir+"origin_"+hkey[0]->str()+'_'+hkey[1]->str()+".pdf";
 
       canv.SaveAs((file_name+'[').c_str());
       pmloop(stat,pt,3) {
-        key4[3] = *pt;
+        hkey[3] = *pt;
 
         canv.Clear();
-        TLegend leg(0.75,0.66,0.95,0.82);
+        TLegend leg(0.75,0.77,0.95,0.82);
         leg.SetFillColor(0);
         leg.SetHeader("Hypotheses:");
 
-        double xmin, xmax;
-        double ymin, ymax;
+        double xmin=0, xmax=0;
+        double ymin=0, ymax=0;
         vector<TH1*> h_;
         pmloop(stat,hypoth,2) {
-          key4[2] = *hypoth;
+          hkey[2] = *hypoth;
 
           h_.push_back(NULL);
           const size_t hi = h_.size()-1;
           TH1*& h = h_[hi];
-          stat.get(key4,h);
+          stat.get(hkey,h);
 
           h->SetLineWidth(2);
           h->SetLineColor(color[hi]);
           h->SetMarkerColor(color[hi]);
-          leg.AddEntry(h,key4[2]->str().c_str());
+          leg.AddEntry(h,hkey[2]->str().c_str());
+          leg.SetY1( leg.GetY1()-0.05 );
           if (hi==0) {
             xmin = h->GetXaxis()->GetXmin();
             xmax = h->GetXaxis()->GetXmax();
@@ -243,7 +187,7 @@ int main(int argc, char *argv[])
 
         }
 
-        h_[0]->SetTitle(Form("%s N=%.0f",( title+" pT "+key4[3]->str() ).c_str(),h_[0]->GetEntries()));
+        h_[0]->SetTitle(Form("%s N=%.0f",( title+" pT "+hkey[3]->str() ).c_str(),h_[0]->GetEntries()));
         h_[0]->SetAxisRange(ymin*1.05,ymax*1.05,"Y");
         h_[0]->Draw();
         for (size_t i=1, size=h_.size(); i<size; ++i) {
@@ -262,36 +206,37 @@ int main(int argc, char *argv[])
   // Compare the same hypothesis for different pseudo-data
   // ******************************************************
   pmloop(stat,hypoth,2) {
-    key4[2] = *hypoth;
+    hkey[2] = *hypoth;
     pmloop(stat,method,1) {
-      key4[1] = *method;
-      string title = key4[2]->str()+" hypothesis: "+key4[1]->str();
-      string file_name = dir+"hypoth_"+key4[2]->str()+'_'+key4[1]->str()+".pdf";
+      hkey[1] = *method;
+      string title = hkey[2]->str()+" hypothesis: "+hkey[1]->str();
+      string file_name = dir+"hypoth_"+hkey[2]->str()+'_'+hkey[1]->str()+".pdf";
 
       canv.SaveAs((file_name+'[').c_str());
       pmloop(stat,pt,3) {
-        key4[3] = *pt;
+        hkey[3] = *pt;
 
         canv.Clear();
-        TLegend leg(0.75,0.66,0.95,0.82);
+        TLegend leg(0.75,0.77,0.95,0.82);
         leg.SetFillColor(0);
         leg.SetHeader("Pseudo-data:");
 
-        double xmin, xmax;
-        double ymin, ymax;
+        double xmin=0, xmax=0;
+        double ymin=0, ymax=0;
         vector<TH1*> h_;
         pmloop(stat,origin,0) {
-          key4[0] = *origin;
+          hkey[0] = *origin;
 
           h_.push_back(NULL);
           const size_t hi = h_.size()-1;
           TH1*& h = h_[hi];
-          stat.get(key4,h);
+          stat.get(hkey,h);
 
           h->SetLineWidth(2);
           h->SetLineColor(color[hi]);
           h->SetMarkerColor(color[hi]);
-          leg.AddEntry(h,Form("%s N=%.0f",key4[0]->str().c_str(),h->GetEntries()));
+          leg.AddEntry(h,Form("%s N=%.0f",hkey[0]->str().c_str(),h->GetEntries()));
+          leg.SetY1( leg.GetY1()-0.05 );
           if (hi==0) {
             xmin = h->GetXaxis()->GetXmin();
             xmax = h->GetXaxis()->GetXmax();
@@ -306,7 +251,7 @@ int main(int argc, char *argv[])
 
         }
 
-        h_[0]->SetTitle(( title+" pT "+key4[3]->str() ).c_str());
+        h_[0]->SetTitle(( title+" pT "+hkey[3]->str() ).c_str());
         h_[0]->SetAxisRange(ymin*1.05,ymax*1.05,"Y");
         h_[0]->Draw();
         for (size_t i=1, size=h_.size(); i<size; ++i) {
@@ -319,11 +264,6 @@ int main(int argc, char *argv[])
       }
       canv.SaveAs((file_name+']').c_str());
     }
-  }
-
-  for (short i=0;i<nf;++i) {
-    f[i]->Close();
-    delete f[i];
   }
 
   return 0;

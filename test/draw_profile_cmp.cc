@@ -97,7 +97,7 @@ int main(int argc, char *argv[])
     return 0;
   }
 
-  // property maps of root files
+  // property map of root files
   propmap<TFile*> files(2);
   vector<prop_ptr> fkey(2);
 
@@ -109,7 +109,7 @@ int main(int argc, char *argv[])
     } else return 1;
   }
 
-  // property maps of histograms
+  // property map of histograms
   propmap<TH1*> profiles(3);
   vector<prop_ptr> pkey(3);
 

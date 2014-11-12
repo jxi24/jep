@@ -45,7 +45,7 @@ int main(int argc, char** argv)
 {
   // START OPTIONS **************************************************
   jep::header head;
-  string dir, pdf_name, conf_file;
+  string dir, pdf_name, conf_file, out_suffix;
 
   try {
     // General Options ------------------------------------
@@ -66,6 +66,9 @@ int main(int argc, char** argv)
       ("pdf", po::value<string>(&pdf_name)->default_value("CT10nnlo"),
        "LHAPDF::PDF name")
 
+      ("out-suffix", po::value<string>(&out_suffix),
+       "output file suffix")
+
       ("conf,c", po::value<string>(&conf_file), "read configuration file")
     ;
 
@@ -85,6 +88,9 @@ int main(int argc, char** argv)
     // trim dir string
     while (*(dir.end()-2) == '/') dir.resize(dir.size()-1);
     if (*(--dir.end()) != '/') dir += '/';
+
+    // prepend underscore to file suffix
+    if (out_suffix.size()) out_suffix = '_'+out_suffix;
 
     // Necessary options ----------------------------------
     vector<string> rec_opt;
@@ -138,7 +144,7 @@ int main(int argc, char** argv)
     cout << "Particle: " << name << ' ' << setw(2) << p << ' ';
 
     stringstream ss;
-    ss << dir << name << "_R" << head.r_max() << ".jep";
+    ss << dir << name << out_suffix << ".jep";
     const char* fname = ss.str().c_str();
 
     cout << fname << endl;

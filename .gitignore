@@ -2,8 +2,9 @@
 bin
 lib
 
-# data files
+# computation output files
 *.root
 *.pdf
-data
-out
+analysis/out
+analysis/theory
+stat2_log.txt
