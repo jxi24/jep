@@ -4,15 +4,19 @@ BIN := ../bin
 MC  := mc
 
 JEP_CFG := R7_CT10nnlo
-JALG := kt
+JALG := antikt
 
-.PHONY: all theory stat_cmp profiles
+P_MC := gluon quark higgs
+
+.PHONY: all theory stat_cmp profiles $(P_MC) jets
+
+.SECONDARY: %.root %.jets
 
 all: stat_cmp
 
 theory: config/*.jepcfg
 	mkdir -p theory
-	$(foreach cfg,$^,$(BIN)/write_data -c $(cfg) --dir=theory;)
+	$(foreach cfg,$^,$(BIN)/write_theory -c $(cfg) --dir=theory;)
 
 out/%_theory_profiles.root: theory/%_$(JEP_CFG).jep
 	@echo -e "\E[0;49;96mGenerating theoretical profile histograms for" $* "\E[0;0m"
@@ -20,7 +24,7 @@ out/%_theory_profiles.root: theory/%_$(JEP_CFG).jep
 
 out/%_mc.jets: $(MC)/%.root
 	@echo -e "\E[0;49;96mSelecting Monte Carlo jets\E[0;0m"
-	@$(BIN)/jet_selection -i $< -o $@ -m leading-jet -r 0.7 --cluster-alg=$(JALG)
+	@$(BIN)/jet_selection -i $< -o $@ -m leading-jet -r 0.7 --cluster-alg=$(JALG) -n 50000
 
 out/%_mc_hists.root: out/%_mc.jets
 	@echo -e "\E[0;49;96mGenerating MC statistics histograms\E[0;0m"
@@ -35,8 +39,12 @@ stat_cmp: out/*_mc_hists.root
 	@mkdir -p out/stat_cmp
 	@$(BIN)/draw_stat_cmp out/stat_cmp $^
 
-profiles: out/*_mc_hists.root $(patsubst %,out/%_theory_profiles.root,gluon quark higgs)
+profiles: out/*_mc_hists.root $(patsubst %,out/%_theory_profiles.root,$(P_MC))
 	@echo -e "\E[0;49;96mPlotting profiles for\E[0;0m"
 	@echo $^
 	@mkdir -p out/stat_cmp
 	@$(BIN)/draw_profile_cmp out/avg_prof.pdf $^
+
+$(P_MC): %: out/%_mc_hists.root
+
+jets: $(patsubst %, out/%_mc.jets, $(P_MC))

@@ -106,7 +106,7 @@ int main(int argc, char *argv[])
         TFile *f = new TFile(argv[i],"read");
         if (f->IsZombie()) return 1;
         files[particle_names[j]] = f;
-      } else if (i==3) {
+      } else if (j==3) {
         cerr << "File name \'"<<name<<"\' does not specify particle" << endl;
         return 1;
       }

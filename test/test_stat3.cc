@@ -238,11 +238,11 @@ int main(int argc, char *argv[])
         );
 
         stat_like_I[it][pt_bin]->Fill( // integral log-likelihood
-          log( jep::statistic(prof, hypoth.begin(), h.r_num, jep::like, 1.) )
+          -2.*log( jep::statistic(prof, hypoth.begin(), h.r_num, jep::like, 1.) )
         );
 
         stat_like_d[it][pt_bin]->Fill( // integral log-likelihood
-          log( jep::statistic(dprof, dhypoth, h.r_num, jep::like, 1.) )
+          -2.*log( jep::statistic(dprof, dhypoth, h.r_num, jep::like, 1.) )
         );
 
       } catch (exception& e) {

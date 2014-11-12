@@ -83,6 +83,7 @@ int main(int argc, char *argv[])
   int _kMaxGenParticle;
   float cone_r;
   method_t method;
+  Long64_t num_ent=0;
 
   try {
     // General Options ------------------------------------
@@ -99,6 +100,8 @@ int main(int argc, char *argv[])
        "jet clustering algorithm: antikt, kt")
       ("cone-radius,r", po::value<float>(&cone_r),
        "clustering cone radius")
+      ("num-events,n", po::value<Long64_t>(&num_ent),
+       "read only first n events in root file")
 
       ("max-gen", po::value<int>(&_kMaxGenParticle)->default_value(2000),
        "maximum GenParticle_* arrays size in input file")
@@ -271,7 +274,8 @@ int main(int argc, char *argv[])
   short num_sec = 0; // seconds elapsed
 
   size_t selected = 0;
-  const Long64_t nEnt = tree->GetEntriesFast();
+  Long64_t nEnt = tree->GetEntriesFast();
+  if (num_ent>0 && num_ent<nEnt) nEnt = num_ent;
   cout << "Events: " << nEnt << endl;
 
   for (Long64_t ent=0; ent<nEnt; ++ent) {
