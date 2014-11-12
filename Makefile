@@ -34,7 +34,7 @@ EXE := bin/test_write bin/test_ascii bin/test_interp \
        bin/test_jepfile_plot bin/test_jepfile_plot2 bin/test_single_event bin/test_profile \
        bin/test_statistics bin/test_stat2 bin/test_stat3 \
        bin/jet_selection \
-       bin/draw_together bin/draw_stat_cmp \
+       bin/draw_together bin/draw_stat_cmp bin/draw_profile_cmp \
        bin/write_data
 
 all: $(DIRS) $(EXE)
@@ -81,9 +81,9 @@ lib/test_write.o lib/test_ascii.o lib/test_interp.o: lib/%.o: test/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m ... "
 	@$(CPP) $(CFLAGS) -c $(filter %.cc,$^) -o $@
 
-lib/test_jepfile_plot.o lib/test_jepfile_plot2.o lib/test_stat2.o lib/test_stat3.o lib/draw_together.o lib/draw_stat_cmp.o: lib/%.o: test/%.cc
+lib/test_jepfile_plot.o lib/test_jepfile_plot2.o lib/test_stat2.o lib/test_stat3.o lib/draw_together.o lib/draw_stat_cmp.o lib/draw_profile_cmp.o: lib/%.o: test/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m ... "
-	@$(CPP) $(CGFLAGS) $(ROOT_CFLAGS) -c $(filter %.cc,$^) -o $@
+	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) -c $(filter %.cc,$^) -o $@
 
 lib/test_single_event.o lib/test_profile.o lib/test_statistics.o lib/jet_selection.o: lib/%.o: test/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m ... "
@@ -102,7 +102,7 @@ bin/test_jepfile_plot bin/test_jepfile_plot2 bin/test_stat2 bin/draw_together: b
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
 	@$(CPP) $(filter %.o,$^) -o $@ $(ROOT_LIBS)
 
-bin/test_stat3 bin/draw_stat_cmp: bin/%: lib/%.o
+bin/test_stat3 bin/draw_stat_cmp bin/draw_profile_cmp: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
 	@$(CPP) $(filter %.o,$^) -o $@ $(ROOT_LIBS) -lboost_regex
 
@@ -137,6 +137,7 @@ lib/test_statistics.o : jep/common.h jep/reader.h jep/statistics.h jep/jet_alg.h
 lib/test_stat2.o  : jep/common.h jep/reader.h
 lib/test_stat3.o  : jep/common.h jep/reader.h jep/stat2.h test/hist_wrap.h test/jets_file.h
 lib/draw_stat_cmp.o: test/propmap.h
+lib/draw_profile_cmp.o: test/propmap.h
 
 # EXE dependencies
 bin/test_write    : lib/jep_common.o lib/jep_writer.o lib/jep_reader.o
