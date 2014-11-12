@@ -228,7 +228,7 @@ int main(int argc, char *argv[])
           h->SetLineWidth(2);
           h->SetLineColor(color[hi]);
           h->SetMarkerColor(color[hi]);
-          leg.AddEntry(h,Form("%s N=%.0f",key4[2]->str().c_str(),h->GetEntries()));
+          leg.AddEntry(h,key4[2]->str().c_str());
           if (hi==0) {
             xmin = h->GetXaxis()->GetXmin();
             xmax = h->GetXaxis()->GetXmax();
@@ -243,7 +243,7 @@ int main(int argc, char *argv[])
 
         }
 
-        h_[0]->SetTitle(( title+" pT "+key4[3]->str() ).c_str());
+        h_[0]->SetTitle(Form("%s N=%.0f",( title+" pT "+key4[3]->str() ).c_str(),h_[0]->GetEntries()));
         h_[0]->SetAxisRange(ymin*1.05,ymax*1.05,"Y");
         h_[0]->Draw();
         for (size_t i=1, size=h_.size(); i<size; ++i) {

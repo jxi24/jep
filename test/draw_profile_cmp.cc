@@ -45,7 +45,7 @@ bool parse_avg_prof(const string& name, vector<prop_ptr>& key) {
   static const boost::regex regex("avg_prof_pt([[:digit:]]*_[[:digit:]]*)");
   static boost::smatch result;
   if ( boost::regex_search(name, result, regex) ) {
-    key[1] = new range_p( string(result[1].first, result[1].second) );
+    key[2] = new range_p( string(result[1].first, result[1].second) );
     return true;
   } else return false;
 }
@@ -85,22 +85,20 @@ int main(int argc, char *argv[])
   // parse arguments
   if ( argc<3 ) {
     cout << "Usage: " << argv[0]
-         << " gluon.root quark.root higgs.root ... out_dir" << endl;
+         << " gluon_mc.root quark_mc.root higgs_mc.root ..." << endl
+         << " gluon_th.root quark_th.root higgs_th.root ..." << endl
     return 0;
   }
 
-  string dir(argv[argc-1]);
-  if (dir.substr(dir.size()-6).compare(".root")) {
-    if (dir[dir.size()-1]!='/') dir += '/';
-  } else dir = string();
-
-  const short nf = ( dir.size() ? argc-2 : argc-1 );
+  const short nf = (argc-1)/2;
 
   // open files
-  TFile* f[nf];
+  TFile* f[nf][2];
   for (short i=0;i<nf;++i) {
-    f[i] = new TFile(argv[i+1],"read");
-    if (f[i]->IsZombie()) return 1;
+    for (short j=0;j<2;++j) {
+      f[i][j] = new TFile(argv[j*nf+i+1],"read");
+      if (f[i][j]->IsZombie()) return 1;
+    }
   }
 
   // trackers of histograms
@@ -108,30 +106,24 @@ int main(int argc, char *argv[])
   vector<prop_ptr> pkey(3);
 
   // read files
-  for (short i=0;i<nf;++i) {
-    switch (i) {
-      case 0: {
-        key2[0] = new prop<string>("gluon");
-        key4[0] = new prop<string>("gluon");
-      } break;
-      case 1: {
-        key2[0] = new prop<string>("quark");
-        key4[0] = new prop<string>("quark");
-      } break;
-      case 2: {
-        key2[0] = new prop<string>("higgs");
-        key4[0] = new prop<string>("higgs");
-      } break;
-      default: return 1; break;
-    }
+  for (short j=0;j<2;++j) {
+    if (j==0) pkey[0] = new prop<string>("mc");
+    else      pkey[1] = new prop<string>("theory");
 
-    static TKey *fkey;
-    TIter nextkey(f[i]->GetListOfKeys());
-    while ((fkey = (TKey*)nextkey())) {
-      TH1 *hist = dynamic_cast<TH1*>( fkey->ReadObj() );
-      if ( parse_avg_prof(hist->GetName(),key2) ) {
-        avg_prof.insert(key2,hist);
-        continue;
+    for (short i=0;i<nf;++i) {
+
+           if (i==0) pkey[1] = new prop<string>("gluon");
+      else if (i==1) pkey[1] = new prop<string>("quark");
+      else if (i==2) pkey[1] = new prop<string>("higgs");
+      
+      static TKey *fkey;
+      TIter nextkey(f[i]->GetListOfKeys());
+      while ((fkey = (TKey*)nextkey())) {
+        TH1 *hist = dynamic_cast<TH1*>( fkey->ReadObj() );
+        if ( parse_avg_prof(hist->GetName(),pkey) ) {
+          avg_prof.insert(pkey,hist);
+          continue;
+        }
       }
     }
   }
