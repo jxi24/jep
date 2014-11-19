@@ -93,7 +93,7 @@ int main(int argc, char *argv[])
   // parse arguments
   if ( argc<3 ) {
     cout << "Usage: " << argv[0]
-         << " output_plot_file.pdf particle_code.root ..." << endl;
+         << " output_plot_file.pdf particle_data.root ..." << endl;
     return 0;
   }
 

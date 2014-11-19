@@ -50,11 +50,11 @@ lib/jep_common.o lib/jep_writer.o lib/jep_reader.o lib/jep_statistics.o: lib/jep
 	@$(CPP) $(CFLAGS) -c $(filter %.cc,$^) -o $@
 
 # test object rule
-lib/test_jets_file.o: lib/test_%.o: test/%.cc test/%.h
+lib/test_jets_file.o: lib/test_%.o: src/%.cc src/%.h
 	@echo -e "Compiling \E[0;49;96m"$@"\E[0;0m ... "
 	@$(CPP) $(CGFLAGS) -Itest -c $(filter %.cc,$^) -o $@
 
-lib/test_hist_wrap.o: lib/test_%.o: test/%.cc test/%.h
+lib/test_hist_wrap.o: lib/test_%.o: src/%.cc src/%.h
 	@echo -e "Compiling \E[0;49;96m"$@"\E[0;0m ... "
 	@$(CPP) $(CGFLAGS) $(ROOT_CFLAGS) -Itest -c $(filter %.cc,$^) -o $@
 
@@ -78,15 +78,15 @@ lib/%.o: theory/%.f90
 	@$(FC) $(FFLAGS) -c $< -o $@ -J lib
 
 # main object rule
-lib/test_write.o lib/test_ascii.o lib/test_interp.o: lib/%.o: test/%.cc
+lib/test_write.o lib/test_ascii.o lib/test_interp.o: lib/%.o: src/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m ... "
 	@$(CPP) $(CFLAGS) -c $(filter %.cc,$^) -o $@
 
-lib/test_jepfile_plot.o lib/test_avg_theory_prof.o lib/test_stat2.o lib/test_stat3.o lib/draw_together.o lib/draw_stat_cmp.o lib/draw_profile_cmp.o: lib/%.o: test/%.cc
+lib/test_jepfile_plot.o lib/test_avg_theory_prof.o lib/test_stat2.o lib/test_stat3.o lib/draw_together.o lib/draw_stat_cmp.o lib/draw_profile_cmp.o: lib/%.o: src/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m ... "
 	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) -c $(filter %.cc,$^) -o $@
 
-lib/test_single_event.o lib/test_profile.o lib/test_statistics.o lib/jet_selection.o: lib/%.o: test/%.cc
+lib/test_single_event.o lib/test_profile.o lib/test_statistics.o lib/jet_selection.o: lib/%.o: src/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m ... "
 	@$(CPP) $(CFLAGS) $(FJ_CFLAGS) $(ROOT_CFLAGS) -c $(filter %.cc,$^) -o $@
 
@@ -136,7 +136,7 @@ lib/test_profile.o: jep/jet_alg.h
 lib/write_theory.o  : jep/common.h jep/writer.h
 lib/test_statistics.o : jep/common.h jep/reader.h jep/statistics.h jep/jet_alg.h
 lib/test_stat2.o  : jep/common.h jep/reader.h
-lib/test_stat3.o  : jep/common.h jep/reader.h jep/stat2.h test/hist_wrap.h test/jets_file.h
+lib/test_stat3.o  : jep/common.h jep/reader.h jep/stat2.h src/hist_wrap.h src/jets_file.h
 lib/draw_stat_cmp.o: test/propmap.h
 lib/draw_profile_cmp.o: test/propmap.h
 
@@ -164,4 +164,4 @@ deepclean:
 backup:
 	@echo -e "Creating \E[0;49;93m"$(BAK)"\E[0;0m"
 	@mkdir -p BAK
-	@tar cvzfh $(BAK) README Makefile jep write shower test scripts cfg
+	@tar cvzfh $(BAK) README Makefile jep src write shower scripts cfg

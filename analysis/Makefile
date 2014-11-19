@@ -43,7 +43,7 @@ profiles: out/*_mc_hists.root $(patsubst %,out/%_theory_profiles.root,$(P_MC))
 	@echo -e "\E[0;49;96mPlotting profiles for\E[0;0m"
 	@echo $^
 	@mkdir -p out/stat_cmp
-	@$(BIN)/draw_profile_cmp out/avg_prof.pdf $^
+	$(BIN)/draw_profile_cmp out/avg_prof.pdf $^
 
 $(P_MC): %: out/%_mc_hists.root
 
