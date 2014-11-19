@@ -15,9 +15,9 @@
 
 #include "jep/reader.h"
 #include "jep/stat2.h"
-#include "test/jets_file.h"
-#include "test/hist_wrap.h"
-#include "test/profile.h"
+#include "jets_file.h"
+#include "hist_wrap.h"
+#include "profile.h"
 
 #define test(var) \
   cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << endl;

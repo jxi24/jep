@@ -12,7 +12,7 @@
 #include <TStyle.h>
 #include <TAxis.h>
 
-#include "test/propmap.h"
+#include "propmap.h"
 
 using namespace std;
 

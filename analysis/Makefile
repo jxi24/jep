@@ -8,7 +8,7 @@ JALG := antikt
 
 P_MC := gluon quark higgs
 
-.PHONY: all theory stat_cmp profiles $(P_MC) jets
+.PHONY: all theory stat_cmp profiles $(P_MC) jets mc_unc_est
 
 .SECONDARY: %.root %.jets
 
@@ -44,6 +44,9 @@ profiles: out/*_mc_hists.root $(patsubst %,out/%_theory_profiles.root,$(P_MC))
 	@echo $^
 	@mkdir -p out/stat_cmp
 	$(BIN)/draw_profile_cmp out/avg_prof.pdf $^
+
+mc_unc_est_%: out/%_mc.jets
+	$(BIN)/mc_profile -c config/R7_mc_profile.jepcfg -i $< -o out/$*_mc_profile
 
 $(P_MC): %: out/%_mc_hists.root
 
