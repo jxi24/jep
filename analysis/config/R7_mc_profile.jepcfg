@@ -1,6 +1,6 @@
 rnum  = 7
 rmin  = 0.1
 rstep = 0.1
-Enum  = 100
-Emin  = 10
-Estep = 10
+Enum  = 10
+Emin  = 0
+Estep = 100

@@ -17,14 +17,58 @@
 using namespace std;
 namespace po = boost::program_options;
 
+jep::header head;
+
 #define test(var) \
   cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << endl;
+
+struct stats {
+  int num_sub;
+  vector< vector< vector<running_stat>* > > stat;
+  vector< vector<running_stat> > comb;
+
+  stats(int num_sub)
+  : num_sub(num_sub),
+    stat(head.E_num), comb(head.E_num,vector<running_stat>(head.r_num))
+  {
+    for (jep::num_t i=0;i<head.E_num;++i)
+      stat[i].push_back(new vector<running_stat>(head.r_num));
+  }
+
+  running_stat& get(jep::num_t Ei, jep::num_t ri) {
+    if ( stat[Ei].back()->operator[](ri).num() == num_sub )
+      stat[Ei].push_back(new vector<running_stat>(head.r_num));
+    return stat[Ei].back()->operator[](ri);
+  }
+
+  ~stats() {
+    for (jep::num_t i=0;i<head.E_num;++i) delete stat[i].back();
+  }
+
+  void combine() {
+    cout << "\nNumbers of means (groups of "<<num_sub<<"):" << endl;
+    cout << setw(5) << "Et" << setw(5) << "num" << endl;
+
+    for (jep::num_t Ei=0;Ei<head.E_num;++Ei) {
+      cout << setw(5) << head.E(Ei)
+           << setw(5) << stat[Ei].size() << endl;
+
+      for (size_t l=0,n=stat[Ei].size()-1; l<n; ++l) {
+        for (jep::num_t ri=0;ri<head.r_num;++ri) {
+          comb[Ei][ri].push( stat[Ei][l]->operator[](ri).mean() );
+        }
+      }
+      for (jep::num_t ri=0;ri<head.r_num;++ri)
+        comb[Ei][ri].push( stat[Ei].back()->operator[](ri).mean(),
+                           double( stat[Ei].back()->operator[](ri).num() )/num_sub );
+    }
+  }
+};
 
 // MAIN ***************************************************
 int main(int argc, char *argv[])
 {
   // START OPTIONS **************************************************
-  jep::header head;
   vector<string> in_jets;
   string out_base, conf_file;
 
@@ -119,7 +163,7 @@ int main(int argc, char *argv[])
   // Compute profile statistics
   // ******************************************************
 
-  running_stat stat[head.E_num][head.r_num];
+  stats _stats(100);
 
   for (size_t i=0; i<num_jets_files; ++i) { // loop over jets files
     static jet j;
@@ -156,7 +200,7 @@ int main(int argc, char *argv[])
 
       // push running_stats
       for (jep::num_t r_bin=0; r_bin<head.r_num; ++r_bin) // 2nd loop over jet constituents
-        stat[E_bin][r_bin].push( profile->GetBinContent(r_bin+1) );
+        _stats.get(E_bin,r_bin).push( profile->GetBinContent(r_bin+1) );
 
       // Increment successful jets counter
       ++ngood;
@@ -177,6 +221,8 @@ int main(int argc, char *argv[])
     cout << "Processed " << ngood << " jets" << endl;
   }
 
+  _stats.combine();
+
   // ******************************************************
   // Write output files
   // ******************************************************
@@ -196,8 +242,8 @@ int main(int argc, char *argv[])
     //cout << "E = " << it.E() << endl;
     do { // r loop
 
-      psi_mean[it.ri()] = stat[it.Ei()][it.ri()].mean();
-      psi_err [it.ri()] = stat[it.Ei()][it.ri()].stdev();
+      psi_mean[it.ri()] = _stats.comb[it.Ei()][it.ri()].mean();
+      psi_err [it.ri()] = _stats.comb[it.Ei()][it.ri()].stdev();
 
       //cout << setw(7) << stat[it.Ei()][it.ri()].mean() << ' '
       //     << setw(7) << stat[it.Ei()][it.ri()].num() << endl;
