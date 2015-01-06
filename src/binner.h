@@ -84,7 +84,8 @@ public:
     return i ? _edges.at(i-1) : -std::numeric_limits<bin_t>::infinity();
   }
   bin_t up_edge(size_type i) const {
-    return i<_edges.size() ? _edges.at(i) : std::numeric_limits<bin_t>::infinity();
+    return i<_edges.size() ? _edges.at(i)
+                           : std::numeric_limits<bin_t>::infinity();
   }
 
   size_type nbins() const {
@@ -106,22 +107,23 @@ protected:
   static Filler _fill;
 };
 
+template<class T>
 struct hist_filler {
-  void operator()(double& v, double x) { v += x; }
-  void operator()(double& v) { v += 1; }
+  void operator()(T& v, T x) { v += x; }
+  void operator()(T& v) { v += 1; }
 };
 
 template<class T = double, class B = double>
-class hist: public binner<T, hist_filler, B> {
+class hist: public binner<T, hist_filler<T>, B> {
 public:
   typedef T val_t;
   typedef B bin_t;
-  using typename binner<T, hist_filler, B>::size_type;
+  using typename binner<T, hist_filler<T>, B>::size_type;
 
   hist(size_type nbinsx, bin_t xlow, bin_t xup)
-  : binner<T, hist_filler, B>(nbinsx,xlow,xup) { }
+  : binner<T, hist_filler<T>, B>(nbinsx,xlow,xup) { }
   template<class Bins> hist(const Bins& bins)
-  : binner<T, hist_filler, B>(bins) { }
+  : binner<T, hist_filler<T>, B>(bins) { }
   virtual ~hist() { }
 
   void normalize(bool with_overflow=false) {
