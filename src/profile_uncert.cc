@@ -43,9 +43,9 @@ int main(int argc, char **argv)
     prof.normalize();
 
     // vector<double> _prof = prof.partial_sums();
-    // for (size_t i=0;i<nbins;++i) profiles.fill(step*(i+0.5),_prof[i]);
+    // for (size_t i=0;i<nbins;++i) profiles.fill_bin(i+1,_prof[i]);
 
-    for (size_t i=1;i<=nbins+1;++i) profiles.fill(step*(i-0.5),prof[i]);
+    for (size_t i=1;i<=nbins+1;++i) profiles.fill_bin(i,prof[i]);
 
     ++njets;
   }
