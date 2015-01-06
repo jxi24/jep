@@ -42,6 +42,8 @@ bool jets_file::next(jet& j) {
   jet::constit c; // current constituent
 
   dat->read((char*)&nc, szt_size);
+  j.c.reserve(nc);
+
   for (size_t i=0; i<nc; ++i) {
     dat->read((char*)&c.r,   dbl_size);
     dat->read((char*)&c.Et,  dbl_size);

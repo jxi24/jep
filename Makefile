@@ -6,7 +6,6 @@ DIRS := lib bin
 BAK = BAK/backup`date +%s`.tar.gz
 
 CFLAGS := -Wall -O3 -I. -Isrc
-CGFLAGS := -Wall -g -I. -Isrc
 
 ROOT_CFLAGS := $(shell root-config --cflags)
 ROOT_LIBS   := $(shell root-config --libs)
@@ -37,7 +36,8 @@ EXE := bin/test_write bin/test_ascii bin/test_interp \
        bin/jet_selection \
        bin/draw_together bin/draw_stat_cmp bin/draw_profile_cmp \
        bin/write_theory \
-       bin/mc_profile
+       bin/mc_profile \
+       bin/test_binner bin/profile_uncert
 
 all: $(DIRS) $(EXE)
 
@@ -79,7 +79,7 @@ lib/%.o: theory/%.f90
 	@$(FC) $(FFLAGS) -c $< -o $@ -J lib
 
 # main object rule
-lib/test_write.o lib/test_ascii.o lib/test_interp.o: lib/%.o: src/%.cc
+lib/test_write.o lib/test_ascii.o lib/test_interp.o lib/profile_uncert.o: lib/%.o: src/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m ... "
 	@$(CPP) $(CFLAGS) -c $(filter %.cc,$^) -o $@
 
@@ -96,7 +96,7 @@ lib/write_theory.o: lib/%.o: theory/%.cc
 	@$(CPP) $(CFLAGS) $(LHAPDF_CFLAGS) -c $(filter %.cc,$^) -o $@
 
 # executable rule
-bin/test_write bin/test_ascii bin/test_interp: bin/%: lib/%.o
+bin/test_write bin/test_ascii bin/test_interp bin/profile_uncert: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
 	@$(CPP) $(filter %.o,$^) -o $@
 
@@ -124,6 +124,10 @@ bin/write_theory: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
 	@$(CPP) $(filter %.o,$^) -o $@ -lgfortran $(CERN_LIB) $(LHAPDF_LIBS) -lboost_program_options
 
+bin/test_binner: bin/%: src/%.cc src/binner.h
+	@echo -e "Compiling \E[0;49;92m"$@"\E[0;0m ... "
+	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) $< -o $@ $(ROOT_LIBS)
+
 # OBJ dependencies
 lib/jep_writer.o  : jep/common.h jep/exception.h
 lib/jep_reader.o  : jep/common.h jep/exception.h
@@ -145,6 +149,7 @@ lib/test_stat3.o  : jep/common.h jep/reader.h jep/stat2.h src/hist_wrap.h src/je
 lib/draw_stat_cmp.o: src/propmap.h
 lib/draw_profile_cmp.o: src/propmap.h
 lib/mc_profile.o  : jep/common.h jep/writer.h src/jets_file.h src/running_stat.h
+lib/profile_uncert.o: src/jets_file.h src/running_stat.h src/binner.h
 
 # EXE dependencies
 bin/test_write    : lib/jep_common.o lib/jep_writer.o lib/jep_reader.o
@@ -154,11 +159,12 @@ bin/test_jepfile_plot: lib/jep_common.o lib/jep_reader.o
 bin/test_avg_theory_prof: lib/jep_common.o lib/jep_reader.o
 bin/test_single_event: lib/jep_jet_alg.o lib/shower_graph_dot.o
 bin/test_profile  : lib/jep_jet_alg.o
-bin/write_theory    : lib/jep_common.o lib/jep_writer.o lib/mod_constant.o lib/mod_terms.o
+bin/write_theory  : lib/jep_common.o lib/jep_writer.o lib/mod_constant.o lib/mod_terms.o
 bin/test_statistics: lib/jep_common.o lib/jep_reader.o lib/jep_statistics.o lib/jep_jet_alg.o
 bin/test_stat2    : lib/jep_common.o lib/jep_reader.o
 bin/test_stat3    : lib/jep_common.o lib/jep_reader.o lib/hist_wrap.o lib/jets_file.o
 bin/mc_profile    : lib/jep_common.o lib/jep_writer.o lib/jets_file.o lib/running_stat.o
+bin/profile_uncert: lib/jets_file.o lib/running_stat.o
 
 clean:
 	@rm -rf bin $(addprefix lib/, $(shell ls lib | grep -v mod))
