@@ -10,13 +10,8 @@
 
 using namespace std;
 
-#define test(var) \
-  cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << endl;
-
 struct stat_filler {
-  void operator()(running_stat& v, double x) {
-    v.push(x);
-  }
+  void operator()(running_stat& v, double x) { v.push(x); }
 };
 
 int main(int argc, char **argv)
@@ -30,7 +25,9 @@ int main(int argc, char **argv)
   jet j;
 
   const double R = jets.coneR();
-  const size_t nbins = lrint(10*R); // apparently int(10*0.7)==6
+  const double step = 0.1;
+  const double tol = 0.5; // overflow tolerance in step units
+  const size_t nbins = lrint(R/step); // apparently int(10*0.7)==6
   binner<running_stat,stat_filler> profiles(nbins,0.,R);
 
   long njets = 0;
@@ -38,23 +35,30 @@ int main(int argc, char **argv)
 
     hist<> prof(nbins,0.,R);
 
-    for (size_t i=0,n=j.size();i<n;++i) prof.fill(j.r(i),j.Et(i));
+    for (size_t i=0,n=j.size();i<n;++i) {
+      double r = j.r(i);
+      if (r>=R) if (r<R+tol*step) r = R-0.5*step;
+      prof.fill(r,j.Et(i));
+    }
     prof.normalize();
 
-    for (size_t i=1;i<=nbins;i++) profiles.fill(0.1*i,prof[i]);
+    // vector<double> _prof = prof.partial_sums();
+    // for (size_t i=0;i<nbins;++i) profiles.fill(step*(i+0.5),_prof[i]);
+
+    for (size_t i=1;i<=nbins+1;++i) profiles.fill(step*(i-0.5),prof[i]);
 
     ++njets;
   }
 
   cout << njets << " jets" << endl;
-  cout << showpoint << setprecision(8) << fixed;
-  cout << setw(12) << "r-up"
+  cout << showpoint << fixed;
+  cout << setw( 5) << "r"
        << setw(12) << "mean"
        << setw(12) << "stdev" << endl;
-  for (size_t i=1;i<=nbins;++i) {
-    cout << setw(12) << profiles.up_edge(i)
-         << setw(12) << profiles[i].mean()
-         << setw(12) << profiles[i].stdev() << endl;
+  for (size_t i=1;i<=nbins+1;++i) {
+    cout << setw( 5) << setprecision(2) << profiles.up_edge(i)
+         << setw(12) << setprecision(8) << profiles[i].mean()
+         << setw(12)                    << profiles[i].stdev() << endl;
   }
 
   return 0;

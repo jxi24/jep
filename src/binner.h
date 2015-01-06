@@ -35,6 +35,7 @@ public:
       _edges[i] = bins[i];
     }
   }
+  virtual ~binner() { }
 
   size_type fill(bin_t b) {
     size_type i = _nbins;
@@ -61,6 +62,15 @@ public:
     }
     _fill(_values[i],x);
     return i;
+  }
+
+  void fill_bin(size_type i) {
+    _fill(_values.at(i));
+  }
+
+  template<class X>
+  void fill_bin(size_type i, const X& x) {
+    _fill(_values.at(i),x);
   }
 
   val_t& operator[](size_type i) {
@@ -106,14 +116,13 @@ class hist: public binner<T, hist_filler, B> {
 public:
   typedef T val_t;
   typedef B bin_t;
-  typedef typename std::vector<bin_t>::iterator edge_iter;
-  typedef typename std::vector<val_t>::iterator val_iter;
-  typedef typename std::vector<bin_t>::size_type size_type;
+  using typename binner<T, hist_filler, B>::size_type;
 
   hist(size_type nbinsx, bin_t xlow, bin_t xup)
   : binner<T, hist_filler, B>(nbinsx,xlow,xup) { }
   template<class Bins> hist(const Bins& bins)
   : binner<T, hist_filler, B>(bins) { }
+  virtual ~hist() { }
 
   void normalize(bool with_overflow=false) {
     val_t integral = (with_overflow ? this->_values[0] : this->_values[1]);
@@ -121,6 +130,19 @@ public:
                    n = this->_nbins+(with_overflow ? 2 : 1);
                    i<n; ++i) integral += this->_values[i];
     for (size_type i=0,n=this->_nbins+2;i<n;++i) this->_values[i] /= integral;
+  }
+
+  std::vector<val_t> partial_sums(bool with_overflow=false) {
+    std::vector<val_t> sums(this->_nbins+(with_overflow ? 2 : 0));
+    for (size_type i = (with_overflow ? 0 : 1),
+                   s = 0,
+                   n = this->_nbins+(with_overflow ? 2 : 1);
+                   i<n; ++i, ++s) {
+      sums[s] = this->_values[i];
+      for (size_type j = (with_overflow ? 0 : 1); j<i; ++j)
+        sums[s] += this->_values[j];
+    }
+    return sums;
   }
 };
 
