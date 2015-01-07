@@ -118,12 +118,11 @@ class hist: public binner<T, hist_filler<T>, B> {
 public:
   typedef T val_t;
   typedef B bin_t;
-  using typename binner<T, hist_filler<T>, B>::size_type;
+  typedef binner<T, hist_filler<T>, B> base;
+  using typename base::size_type;
 
-  hist(size_type nbinsx, bin_t xlow, bin_t xup)
-  : binner<T, hist_filler<T>, B>(nbinsx,xlow,xup) { }
-  template<class Bins> hist(const Bins& bins)
-  : binner<T, hist_filler<T>, B>(bins) { }
+  hist(size_type nbinsx, bin_t xlow, bin_t xup): base(nbinsx,xlow,xup) { }
+  template<class Bins> hist(const Bins& bins): base(bins) { }
   virtual ~hist() { }
 
   void normalize(bool with_overflow=false) {
