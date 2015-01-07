@@ -3,9 +3,7 @@ CPP := g++
 
 DIRS := lib bin
 
-BAK = BAK/backup`date +%s`.tar.gz
-
-CFLAGS := -Wall -O3 -I. -Isrc
+CFLAGS := -Wall -O3 -I. -Itools -Isrc
 
 ROOT_CFLAGS := $(shell root-config --cflags)
 ROOT_LIBS   := $(shell root-config --libs)
@@ -22,24 +20,25 @@ CERN_LIB := -lmathlib
 
 #LHAPDF_INSTALL := /work/raida/isaacs21/LHAPDF/LHAPDF6
 #LHAPDF_CONFIG  := $(LHAPDF_INSTALL)/bin/lhapdf-config
-#LHAPDF_CFLAGS   := $(shell $(LHAPDF_CONFIG) --cppflags)
+#LHAPDF_CFLAGS  := $(shell $(LHAPDF_CONFIG) --cppflags)
 #LHAPDF_LIBS    := -Wl,-rpath=$(LHAPDF_INSTALL)/lib $(shell $(LHAPDF_CONFIG) --ldflags)
 LHAPDF_CFLAGS  := $(shell lhapdf-config --cppflags)
 LHAPDF_LIBS    := $(shell lhapdf-config --ldflags)
 
-.PHONY: all clean deepclean backup
+.PHONY: all test clean deepclean backup
 
-EXE := bin/test_write bin/test_ascii bin/test_interp \
-       bin/test_jepfile_plot bin/test_avg_theory_prof \
-       bin/test_single_event bin/test_profile \
-       bin/test_statistics bin/test_stat2 bin/test_stat3 \
-       bin/jet_selection \
-       bin/draw_together bin/draw_stat_cmp bin/draw_profile_cmp \
-       bin/write_theory \
-       bin/mc_profile \
-       bin/test_binner bin/profile_uncert
+all:  $(DIRS) \
+			bin/test_jepfile_plot bin/test_avg_theory_prof \
+			bin/test_single_event bin/test_profile \
+			bin/test_stat3 \
+			bin/jet_selection \
+			bin/draw_together bin/draw_stat_cmp bin/draw_profile_cmp \
+			bin/write_theory \
+			bin/mc_profile \
+			bin/test_binner bin/profile_uncert
 
-all: $(DIRS) $(EXE)
+test: bin/test_write bin/test_ascii bin/test_interp
+
 
 # directories rule
 $(DIRS):
@@ -51,7 +50,11 @@ lib/jep_common.o lib/jep_writer.o lib/jep_reader.o lib/jep_statistics.o: lib/jep
 	@$(CPP) $(CFLAGS) -c $(filter %.cc,$^) -o $@
 
 # object rule
-lib/jets_file.o lib/running_stat.o: lib/%.o: src/%.cc src/%.h
+lib/jets_file.o: lib/%.o: src/%.cc src/%.h
+	@echo -e "Compiling \E[0;49;96m"$@"\E[0;0m ... "
+	@$(CPP) $(CFLAGS) -c $(filter %.cc,$^) -o $@
+
+lib/running_stat.o: lib/%.o: tools/%.cc tools/%.h
 	@echo -e "Compiling \E[0;49;96m"$@"\E[0;0m ... "
 	@$(CPP) $(CFLAGS) -c $(filter %.cc,$^) -o $@
 
@@ -79,11 +82,15 @@ lib/%.o: theory/%.f90
 	@$(FC) $(FFLAGS) -c $< -o $@ -J lib
 
 # main object rule
-lib/test_write.o lib/test_ascii.o lib/test_interp.o lib/profile_uncert.o: lib/%.o: src/%.cc
+lib/test_write.o lib/test_ascii.o lib/test_interp.o: lib/%.o: test/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m ... "
 	@$(CPP) $(CFLAGS) -c $(filter %.cc,$^) -o $@
 
-lib/test_jepfile_plot.o lib/test_avg_theory_prof.o lib/test_stat2.o lib/test_stat3.o lib/draw_together.o lib/draw_stat_cmp.o lib/draw_profile_cmp.o lib/mc_profile.o: lib/%.o: src/%.cc
+lib/profile_uncert.o: lib/%.o: src/%.cc
+	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m ... "
+	@$(CPP) $(CFLAGS) -c $(filter %.cc,$^) -o $@
+
+lib/test_jepfile_plot.o lib/test_avg_theory_prof.o lib/test_stat3.o lib/draw_together.o lib/draw_stat_cmp.o lib/draw_profile_cmp.o lib/mc_profile.o: lib/%.o: src/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m ... "
 	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) -c $(filter %.cc,$^) -o $@
 
@@ -100,7 +107,11 @@ bin/test_write bin/test_ascii bin/test_interp bin/profile_uncert: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
 	@$(CPP) $(filter %.o,$^) -o $@
 
-bin/test_jepfile_plot bin/test_avg_theory_prof bin/test_stat2 bin/draw_together: bin/%: lib/%.o
+bin/test_binner: bin/%: test/%.cc tools/binner.h
+	@echo -e "Compiling \E[0;49;92m"$@"\E[0;0m ... "
+	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) $< -o $@ $(ROOT_LIBS)
+
+bin/test_jepfile_plot bin/test_avg_theory_prof bin/draw_together: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
 	@$(CPP) $(filter %.o,$^) -o $@ $(ROOT_LIBS)
 
@@ -124,10 +135,6 @@ bin/write_theory: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
 	@$(CPP) $(filter %.o,$^) -o $@ -lgfortran $(CERN_LIB) $(LHAPDF_LIBS) -lboost_program_options
 
-bin/test_binner: bin/%: src/%.cc src/binner.h
-	@echo -e "Compiling \E[0;49;92m"$@"\E[0;0m ... "
-	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) $< -o $@ $(ROOT_LIBS)
-
 # OBJ dependencies
 lib/jep_writer.o  : jep/common.h jep/exception.h
 lib/jep_reader.o  : jep/common.h jep/exception.h
@@ -144,12 +151,11 @@ lib/test_single_event.o: jep/jet_alg.h shower/graph_dot.h
 lib/test_profile.o: jep/jet_alg.h
 lib/write_theory.o: jep/common.h jep/writer.h
 lib/test_statistics.o : jep/common.h jep/reader.h jep/statistics.h jep/jet_alg.h
-lib/test_stat2.o  : jep/common.h jep/reader.h
 lib/test_stat3.o  : jep/common.h jep/reader.h jep/stat2.h src/hist_wrap.h src/jets_file.h
-lib/draw_stat_cmp.o: src/propmap.h
-lib/draw_profile_cmp.o: src/propmap.h
-lib/mc_profile.o  : jep/common.h jep/writer.h src/jets_file.h src/running_stat.h
-lib/profile_uncert.o: src/jets_file.h src/running_stat.h src/binner.h
+lib/draw_stat_cmp.o: tools/propmap.h
+lib/draw_profile_cmp.o: tools/propmap.h
+lib/mc_profile.o  : jep/common.h jep/writer.h src/jets_file.h tools/running_stat.h
+lib/profile_uncert.o: src/jets_file.h tools/running_stat.h tools/binner.h
 
 # EXE dependencies
 bin/test_write    : lib/jep_common.o lib/jep_writer.o lib/jep_reader.o
@@ -161,7 +167,6 @@ bin/test_single_event: lib/jep_jet_alg.o lib/shower_graph_dot.o
 bin/test_profile  : lib/jep_jet_alg.o
 bin/write_theory  : lib/jep_common.o lib/jep_writer.o lib/mod_constant.o lib/mod_terms.o
 bin/test_statistics: lib/jep_common.o lib/jep_reader.o lib/jep_statistics.o lib/jep_jet_alg.o
-bin/test_stat2    : lib/jep_common.o lib/jep_reader.o
 bin/test_stat3    : lib/jep_common.o lib/jep_reader.o lib/hist_wrap.o lib/jets_file.o
 bin/mc_profile    : lib/jep_common.o lib/jep_writer.o lib/jets_file.o lib/running_stat.o
 bin/profile_uncert: lib/jets_file.o lib/running_stat.o
@@ -173,8 +178,3 @@ clean:
 
 deepclean:
 	rm -rf bin lib
-
-backup:
-	@echo -e "Creating \E[0;49;93m"$(BAK)"\E[0;0m"
-	@mkdir -p BAK
-	@tar cvzfh $(BAK) README Makefile jep src write shower scripts cfg
