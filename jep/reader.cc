@@ -167,6 +167,14 @@ std::vector<val_t> reader::psi(val_t E) const {
   return psis;
 }
 
+std::vector<val_t> reader::dpsi(val_t E) const {
+  std::vector<val_t> psi_ = psi(E);
+  for (size_t i=head.r_num-1;i!=0;--i) {
+    psi_[i] -= psi_[i-1];
+  }
+  return psi_;
+}
+
 std::vector<val_t> reader::psi_avg(num_t Enum, val_t Emin, val_t Emax) const {
   val_t Estep = (Emax-Emin)/(Enum-1);
   std::vector<val_t> psi_ret(head.r_num,0.);

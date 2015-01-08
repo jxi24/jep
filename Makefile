@@ -156,7 +156,7 @@ lib/draw_stat_cmp.o: tools/propmap.h
 lib/draw_profile_cmp.o: tools/propmap.h
 lib/mc_profile.o  : jep/common.h jep/writer.h src/jets_file.h tools/running_stat.h
 lib/profile_uncert.o: src/jets_file.h tools/running_stat.h tools/binner.h
-lib/pseudo_stat_cmp.o: tools/running_stat.h
+lib/pseudo_stat_cmp.o: tools/running_stat.h jep/common.h jep/reader.h
 
 # EXE dependencies
 bin/test_write    : lib/jep_common.o lib/jep_writer.o lib/jep_reader.o
@@ -171,7 +171,7 @@ bin/test_statistics: lib/jep_common.o lib/jep_reader.o lib/jep_statistics.o lib/
 bin/test_stat3    : lib/jep_common.o lib/jep_reader.o lib/hist_wrap.o lib/jets_file.o
 bin/mc_profile    : lib/jep_common.o lib/jep_writer.o lib/jets_file.o lib/running_stat.o
 bin/profile_uncert: lib/jets_file.o lib/running_stat.o
-bin/pseudo_stat_cmp: lib/running_stat.o
+bin/pseudo_stat_cmp: lib/running_stat.o lib/jep_common.o lib/jep_reader.o
 
 clean:
 	@rm -rf bin $(addprefix lib/, $(shell ls lib | grep -v mod))

@@ -1,11 +1,15 @@
 # compilation output
-bin
-lib
+/bin
+/lib
 
 # computation output files
-*.root
-*.pdf
-analysis/out
-analysis/theory
-analysis/mc
+/*.root
+/*.pdf
+/analysis/out
+/analysis/theory
+/analysis/mc
 stat2_log.txt
+
+# misc
+/*.dat
+

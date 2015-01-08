@@ -41,6 +41,7 @@ class reader {
     // getter *******************************************************
     virtual std::vector<val_t> psi(val_t E) const;
     virtual std::vector<val_t> psi_avg(num_t Enum, val_t Emin, val_t Emax) const;
+    virtual std::vector<val_t> dpsi(val_t E) const;
 
     virtual const header& get_header() const;
 
