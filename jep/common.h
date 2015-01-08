@@ -54,6 +54,8 @@ struct header {
 
   bool operator==(const header& rhs) const;
   bool operator!=(const header& rhs) const;
+
+  bool cmprad(const header& rhs) const; // return false if same
 };
 
 }

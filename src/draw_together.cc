@@ -9,8 +9,6 @@
 
 using namespace std;
 
-typedef vector<TH1*>::iterator iter;
-
 int main(int argc, char *argv[])
 {
   if ( argc<4 ) {
@@ -45,7 +43,7 @@ int main(int argc, char *argv[])
   TCanvas canv;
   TLegend leg(0.75,0.92-0.05*h.size(),0.95,0.92);
   leg.SetFillColor(0);
-  gStyle->SetOptStat(0); 
+  gStyle->SetOptStat(0);
 
   for (size_t i=0, size=h.size(); i<size; ++i) {
     h[i]->SetLineWidth(2);

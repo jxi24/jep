@@ -1,7 +1,6 @@
 #include "jep/reader.h"
 
 #include <fstream>
-#include <string>
 #include <sstream>
 #include <cmath>
 #include <iomanip>
@@ -22,9 +21,9 @@ namespace jep {
 const size_t reader::header_size = sizeof(header);
 
 // reader ***********************************************************
-reader::reader(const char* filename)
+reader::reader(const std::string& filename)
 : filename(filename),
-  dat( new std::ifstream(filename, std::ifstream::binary) ),
+  dat( new std::ifstream(filename.c_str(), std::ifstream::binary) ),
   head(read_header()), psi_(init_psi()),
   cE(head.E_num) // initialize this to impossible value
 {
@@ -84,9 +83,9 @@ const header& reader::get_header() const {
 }
 
 // ASCII converter **************************************************
-void reader::to_ascii(const char* filename) const {
+void reader::to_ascii(const std::string& filename) const {
 
-  std::ofstream txt(filename);
+  std::ofstream txt(filename.c_str());
   if (txt.is_open())
   {
     txt << "# Header" << std::endl;

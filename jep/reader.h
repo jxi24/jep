@@ -4,13 +4,14 @@
 #include "jep/common.h"
 
 #include <iosfwd>
+#include <string>
 #include <vector>
 
 namespace jep {
 
 class reader {
   protected:
-    const char* const filename;
+    const std::string filename;
     std::ifstream * const dat;
     const header head; // header
     val_t** const psi_; // two dimensional array of values
@@ -30,13 +31,13 @@ class reader {
 
   public:
     // constructor **************************************************
-    reader(const char* filename);
+    reader(const std::string& filename);
 
     // delete *******************************************************
     virtual ~reader();
 
     // converters ***************************************************
-    virtual void to_ascii(const char* filename) const;
+    virtual void to_ascii(const std::string& filename) const;
 
     // getter *******************************************************
     virtual std::vector<val_t> psi(val_t E) const;

@@ -20,14 +20,20 @@ val_t header::r_max() const {
   return r_max;
 }
 
+bool header::cmprad(const header& rhs) const {
+  if (r_num  != rhs.r_num ) return true;
+  if (r_min  != rhs.r_min ) return true;
+  if (r_step != rhs.r_step) return true;
+
+  return false;
+}
+
 bool header::operator==(const header& rhs) const {
   if (E_num  != rhs.E_num ) return false;
   if (E_min  != rhs.E_min ) return false;
   if (E_step != rhs.E_step) return false;
 
-  if (r_num  != rhs.r_num ) return false;
-  if (r_min  != rhs.r_min ) return false;
-  if (r_step != rhs.r_step) return false;
+  if (cmprad(rhs)) return false;
 
   return true;
 }

@@ -111,11 +111,11 @@ bin/test_binner: bin/%: test/%.cc tools/binner.h
 	@echo -e "Compiling \E[0;49;92m"$@"\E[0;0m ... "
 	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) $< -o $@ $(ROOT_LIBS)
 
-bin/test_jepfile_plot bin/test_avg_theory_prof bin/draw_together bin/pseudo_stat_cmp: bin/%: lib/%.o
+bin/test_jepfile_plot bin/test_avg_theory_prof bin/draw_together: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
 	@$(CPP) $(filter %.o,$^) -o $@ $(ROOT_LIBS)
 
-bin/mc_profile: bin/%: lib/%.o
+bin/mc_profile bin/pseudo_stat_cmp: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
 	@$(CPP) $(filter %.o,$^) -o $@ $(ROOT_LIBS) -lboost_program_options
 
