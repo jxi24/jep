@@ -9,7 +9,6 @@
 
 #include "jep/exception.h"
 
-
 #include <iostream>
 
 #define test(var) \
