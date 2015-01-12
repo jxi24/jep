@@ -106,6 +106,8 @@ protected:
 
   static Filler _fill;
 };
+template<class T, class Filler, class B>
+Filler binner<T,Filler,B>::_fill;
 
 template<class T>
 struct hist_filler {

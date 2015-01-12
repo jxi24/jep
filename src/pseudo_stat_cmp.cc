@@ -116,22 +116,24 @@ public:
   : stat_chi2_I( new TH1D(
       Form("chi2_I_%s_%s",jep::pid_name(hypoth.head.pid),
                           jep::pid_name(  data.head.pid)),
-      "chi2_I",100,0,2)
-    ),
+      "chi2_I",200,0,
+      (hypoth.head.pid==jep::gluon ? 0.8 : (hypoth.head.pid==jep::quark ? 1.2 : 5))
+    ) ),
     stat_chi2_d( new TH1D(
       Form("chi2_d_%s_%s",jep::pid_name(hypoth.head.pid),
                           jep::pid_name(  data.head.pid)),
-      "chi2_d",100,0,2)
-    ),
+      "chi2_d",200,0,
+      (hypoth.head.pid==jep::gluon ? 1.8 : (hypoth.head.pid==jep::quark ? 5 : 5))
+    ) ),
     stat_like_I( new TH1D(
       Form("like_I_%s_%s",jep::pid_name(hypoth.head.pid),
                           jep::pid_name(  data.head.pid)),
-      "like_I",100,-25,6)
-    ),
+      "like_I",200,-15,5
+    ) ),
     stat_like_d( new TH1D(
       Form("like_d_%s_%s",jep::pid_name(hypoth.head.pid),
                           jep::pid_name(  data.head.pid)),
-      "like_d",100,-25,6)
+      "like_d",200,-25,20)
     ),
     prof(&hypoth.prof), dprof(&hypoth.dprof),
     pseudo(&data.pseudo), dpseudo(&data.dpseudo)

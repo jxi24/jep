@@ -3,7 +3,7 @@ CPP := g++
 
 DIRS := lib bin
 
-CFLAGS := -Wall -O3 -I. -Itools -Isrc
+CFLAGS := -Wall -g -I. -Itools -Isrc
 
 ROOT_CFLAGS := $(shell root-config --cflags)
 ROOT_LIBS   := $(shell root-config --libs)
@@ -32,7 +32,7 @@ all:  $(DIRS) \
 			bin/test_single_event bin/test_profile \
 			bin/test_stat3 \
 			bin/jet_selection \
-			bin/draw_together bin/draw_stat_cmp bin/draw_profile_cmp \
+			bin/draw_together bin/draw_stat_cmp bin/draw_stat_cmp2 bin/draw_profile_cmp \
 			bin/write_theory \
 			bin/mc_profile \
 			bin/profile_uncert bin/pseudo_stat_cmp
@@ -90,7 +90,7 @@ lib/profile_uncert.o: lib/%.o: src/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m ... "
 	@$(CPP) $(CFLAGS) -c $(filter %.cc,$^) -o $@
 
-lib/test_jepfile_plot.o lib/test_avg_theory_prof.o lib/test_stat3.o lib/draw_together.o lib/draw_stat_cmp.o lib/draw_profile_cmp.o lib/mc_profile.o lib/pseudo_stat_cmp.o: lib/%.o: src/%.cc
+lib/test_jepfile_plot.o lib/test_avg_theory_prof.o lib/test_stat3.o lib/draw_together.o lib/draw_stat_cmp.o lib/draw_stat_cmp2.o lib/draw_profile_cmp.o lib/mc_profile.o lib/pseudo_stat_cmp.o: lib/%.o: src/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m ... "
 	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) -c $(filter %.cc,$^) -o $@
 
@@ -119,7 +119,7 @@ bin/mc_profile bin/pseudo_stat_cmp: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
 	@$(CPP) $(filter %.o,$^) -o $@ $(ROOT_LIBS) -lboost_program_options
 
-bin/test_stat3 bin/draw_stat_cmp bin/draw_profile_cmp: bin/%: lib/%.o
+bin/test_stat3 bin/draw_stat_cmp bin/draw_stat_cmp2 bin/draw_profile_cmp: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
 	@$(CPP) $(filter %.o,$^) -o $@ $(ROOT_LIBS) -lboost_regex
 
