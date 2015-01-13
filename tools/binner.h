@@ -20,9 +20,21 @@ public:
   typedef typename std::vector<val_t>::iterator val_iter;
   typedef typename std::vector<bin_t>::size_type size_type;
 
+/*
   binner(size_type nbinsx, bin_t xlow, bin_t xup)
   : _nbins(nbinsx), _edges(_nbins+1), _values(_nbins+2)
   {
+    const bin_t step = (xup-xlow)/_nbins;
+    for (unsigned i=0;i<=_nbins;++i) {
+      _edges[i] = xlow + i*step;
+    }
+  }
+*/
+  binner(size_type nbinsx, bin_t xlow, bin_t xup)
+  : _nbins(nbinsx), _edges(_nbins+1)
+  {
+    _values.reserve(_nbins+2);
+    for (size_type i=0;i<_nbins+2;++i) _values.push_back(val_t());
     const bin_t step = (xup-xlow)/_nbins;
     for (unsigned i=0;i<=_nbins;++i) {
       _edges[i] = xlow + i*step;
@@ -121,7 +133,7 @@ public:
   typedef T val_t;
   typedef B bin_t;
   typedef binner<T, hist_filler<T>, B> base;
-  using typename base::size_type;
+  typedef typename base::size_type size_type;
 
   hist(size_type nbinsx, bin_t xlow, bin_t xup): base(nbinsx,xlow,xup) { }
   template<class Bins> hist(const Bins& bins): base(bins) { }
