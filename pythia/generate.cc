@@ -132,7 +132,7 @@ int main(int argc, char **argv)
   pythia.init(2212,2212,14000.); // Initialise pp (PDG 2212) at 14 TeV
 
   // Create an LHAup object that can access relevant information in pythia.
-  LHAupFromPYTHIA8 myLHA(&pythia.process, &pythia.info);
+  LHAupFromPYTHIA8 myLHA(&pythia.event, &pythia.info);
 
   // Open a file on which LHEF events should be stored, and write header.
   myLHA.openLHEF(output);
