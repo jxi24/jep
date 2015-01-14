@@ -155,15 +155,6 @@ int main(int argc, char **argv)
           // exit(1);
         }
     }
-    int iH = 0;
-    for (int i = 0; i < pythia.event.size(); i++)
-    {
-        if(pythia.event[i].id() == 25) iH = i;
-    }
-    pTH.fill(pythia.event[iH].pT());
-
-    // Extract event classification.
-    // int code = pythia.info.code();
 
     // Store event info in the LHAup object.
     myLHA.setEvent();
@@ -172,14 +163,13 @@ int main(int argc, char **argv)
     // With optional argument (verbose =) false the file is smaller.
     myLHA.eventLHEF();
 
-  }//End of event loop
+  } // End of event loop
 
-  pythia.stat();
-  cout << pTH;
+  // pythia.stat();
 
   // Update the cross section info based on Monte Carlo integration during run.
   myLHA.updateSigma();
-  
+
   // Write endtag. Overwrite initialization info with new cross sections.
   myLHA.closeLHEF(true);
 

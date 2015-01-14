@@ -1,6 +1,8 @@
 # compilation output
 /bin
 /lib
+/pythia/generate
+/pythia/*.lhe
 
 # computation output files
 /*.root
@@ -12,4 +14,3 @@ stat2_log.txt
 
 # misc
 /*.dat
-
