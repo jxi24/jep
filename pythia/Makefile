@@ -1,6 +1,6 @@
 CPP := g++
 
-CFLAGS := -Wall -g
+CFLAGS := -Wall -O3
 
 PYTHIA8_CFLAGS := $(shell pythia8-config --cxxflags)
 PYTHIA8_LIBS   := $(shell pythia8-config --libs)

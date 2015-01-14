@@ -31,7 +31,7 @@ all:  $(DIRS) \
 			bin/test_jepfile_plot bin/test_avg_theory_prof \
 			bin/test_single_event bin/test_profile \
 			bin/test_stat3 \
-			bin/jet_selection \
+			bin/jet_selection_hep bin/jet_selection_lhe \
 			bin/draw_together bin/draw_stat_cmp bin/draw_profile_cmp \
 			bin/write_theory \
 			bin/mc_profile \
@@ -54,7 +54,7 @@ lib/jets_file.o: lib/%.o: src/%.cc src/%.h
 	@echo -e "Compiling \E[0;49;96m"$@"\E[0;0m ... "
 	@$(CPP) $(CFLAGS) -c $(filter %.cc,$^) -o $@
 
-lib/running_stat.o: lib/%.o: tools/%.cc tools/%.h
+lib/running_stat.o lib/timed_counter.o: lib/%.o: tools/%.cc tools/%.h
 	@echo -e "Compiling \E[0;49;96m"$@"\E[0;0m ... "
 	@$(CPP) $(CFLAGS) -c $(filter %.cc,$^) -o $@
 
@@ -94,9 +94,13 @@ lib/test_jepfile_plot.o lib/test_avg_theory_prof.o lib/test_stat3.o lib/draw_tog
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m ... "
 	@$(CPP) $(CFLAGS) $(ROOT_CFLAGS) -c $(filter %.cc,$^) -o $@
 
-lib/test_single_event.o lib/test_profile.o lib/test_statistics.o lib/jet_selection.o: lib/%.o: src/%.cc
+lib/test_single_event.o lib/test_profile.o lib/test_statistics.o lib/jet_selection_hep.o: lib/%.o: src/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m ... "
 	@$(CPP) $(CFLAGS) $(FJ_CFLAGS) $(ROOT_CFLAGS) -c $(filter %.cc,$^) -o $@
+
+lib/jet_selection_lhe.o: lib/%.o: src/%.cc
+	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m ... "
+	@$(CPP) $(CFLAGS) $(FJ_CFLAGS) -c $(filter %.cc,$^) -o $@
 
 lib/write_theory.o: lib/%.o: theory/%.cc
 	@echo -e "Compiling \E[0;49;94m"$@"\E[0;0m ... "
@@ -127,9 +131,13 @@ bin/test_single_event bin/test_profile bin/test_statistics: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
 	@$(CPP) -Wl,--no-as-needed $(filter %.o,$^) -o $@ $(ROOT_LIBS) $(FJ_LIBS)
 
-bin/jet_selection: bin/%: lib/%.o
+bin/jet_selection_hep: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
 	@$(CPP) -Wl,--no-as-needed $(filter %.o,$^) -o $@ $(ROOT_LIBS) $(FJ_LIBS) -lboost_program_options
+
+bin/jet_selection_lhe: bin/%: lib/%.o
+	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
+	@$(CPP) $(filter %.o,$^) -o $@ $(FJ_LIBS) -lboost_program_options
 
 bin/write_theory: bin/%: lib/%.o
 	@echo -e "Linking \E[0;49;92m"$@"\E[0;0m ... "
@@ -157,6 +165,8 @@ lib/draw_profile_cmp.o: tools/propmap.h
 lib/mc_profile.o  : jep/common.h jep/writer.h src/jets_file.h tools/running_stat.h
 lib/profile_uncert.o: src/jets_file.h tools/running_stat.h tools/binner.h
 lib/pseudo_stat_cmp.o: tools/running_stat.h jep/common.h jep/reader.h
+lib/jet_selection_hep.o: src/stdhep.h tools/timed_counter.h
+lib/jet_selection_lhe.o: lhef/LHEF.h tools/timed_counter.h
 
 # EXE dependencies
 bin/test_write    : lib/jep_common.o lib/jep_writer.o lib/jep_reader.o
@@ -172,6 +182,8 @@ bin/test_stat3    : lib/jep_common.o lib/jep_reader.o lib/hist_wrap.o lib/jets_f
 bin/mc_profile    : lib/jep_common.o lib/jep_writer.o lib/jets_file.o lib/running_stat.o
 bin/profile_uncert: lib/jets_file.o lib/running_stat.o
 bin/pseudo_stat_cmp: lib/running_stat.o lib/jep_common.o lib/jep_reader.o
+bin/jet_selection_hep : lib/timed_counter.o
+bin/jet_selection_lhe : lib/timed_counter.o
 
 clean:
 	@rm -rf bin $(addprefix lib/, $(shell ls lib | grep -v mod))
