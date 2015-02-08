@@ -11,6 +11,7 @@
 /analysis/theory
 /analysis/mc
 stat2_log.txt
+/data
 
 # misc
 /*.dat

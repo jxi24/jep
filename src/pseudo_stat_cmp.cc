@@ -83,7 +83,9 @@ struct profile {
     for (size_t i=0;i<head.r_num;++i) {
       static double psi;
       do {
+      
         psi = rand.Gaus(dprof[i],stdev[i]);
+        
       } while ( psi < 0. || 1. < psi );
       dpseudo[i] = psi;
     }

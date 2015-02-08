@@ -4,6 +4,7 @@
 #include <vector>
 #include <cmath>
 
+#include <TFile.h>
 #include <TH1.h>
 
 #include "jets_file.h"
@@ -12,28 +13,14 @@
 
 using namespace std;
 
-struct stat_filler {
-  void operator()(running_stat& v, double x) { v.push(x); }
-};
-
-struct hs {
-  TH1D* h;
-  running_stat s;
-  hs(): h( new TH1D(Form("hist%d",nh),"",100,0,1) ), s() { ++nh; }
-  ~hs() { cout << "delete" << endl; }
-
-  static int nh;
-};
-int hs::nh = 0;
-
-struct hs_filler {
-  void operator()(hs& v, double x) { v.h->Fill(x); v.s.push(x); }
+struct hist_filler {
+  void operator()(TH1* h, double x) { h->Fill(x); }
 };
 
 int main(int argc, char **argv)
 {
-  if (argc!=2) {
-    cout << "Usage: " << argv[0] << " input.jets" << endl;
+  if (argc!=3) {
+    cout << "Usage: " << argv[0] << " input.jets output.root" << endl;
     return 0;
   }
 
@@ -44,7 +31,23 @@ int main(int argc, char **argv)
   const double step = 0.1;
   const double tol = 0.5; // overflow tolerance in step units
   const size_t nbins = lrint(R/step); // apparently int(10*0.7)==6
-  binner<hs,hs_filler> profiles(nbins,0.,R);
+  binner<TH1*,hist_filler> profiles(nbins,0.,R);
+  
+  TFile *f = new TFile(argv[2],"recreate");
+  if (f->IsZombie()) exit(1);
+
+  for (size_t i=1;i<=profiles.nbins();++i) {
+    const double up_edge = profiles.up_edge(i);
+    const double low_edge = profiles.low_edge(i);
+    profiles[i] = new TH1F(
+      Form("r_%.1f_%.1f",low_edge,up_edge),
+      Form("%.1f #leq r < %.1f",low_edge,up_edge),
+      100,0,1);
+  }
+  profiles[profiles.nbins()+1] = new TH1F(
+    Form("r_%.1f",profiles.low_edge(profiles.nbins()+1)),
+    Form("r #geq %.1f",profiles.low_edge(profiles.nbins()+1)),
+    100,0,1);
 
   long njets = 0;
   while (jets.next(j)) { // loop over jets in a file
@@ -66,16 +69,9 @@ int main(int argc, char **argv)
     ++njets;
   }
 
-  cout << njets << " jets" << endl;
-  cout << showpoint << fixed;
-  cout << setw( 5) << "r"
-       << setw(12) << "mean"
-       << setw(12) << "stdev" << endl;
-  for (size_t i=1;i<=nbins+1;++i) {
-    cout << setw( 5) << setprecision(2) << profiles.up_edge(i)
-         << setw(12) << setprecision(8) << profiles[i].s.mean()
-         << setw(12)                    << profiles[i].s.stdev() << endl;
-  }
+  f->Write();
+  f->Close();
+  delete f;
 
   return 0;
 }
