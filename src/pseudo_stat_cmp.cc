@@ -11,8 +11,10 @@
 #include <TRandom3.h>
 #include <TFile.h>
 #include <TH1.h>
+#include <TMath.h>
 
 #include "running_stat.h"
+#include "inverse.hh"
 #include "jep/reader.h"
 #include "jep/stat2.h"
 
@@ -22,9 +24,21 @@
 using namespace std;
 namespace po = boost::program_options;
 
-template<class T>
-void operator/=(vector<T>& v, T x) {
-  for (vector<jep::val_t>::iterator it=v.begin(),
+template<typename T> inline T sq(T x) { return x*x; }
+
+class beta_cdf {
+  double a, b;
+public:
+  beta_cdf(double m, double v) // mean and variance
+  : a(m*m*(1-m)/v - m), b((1-m)*a/m) { }
+  double operator()(double x) const {
+    return TMath::BetaIncomplete(x,a,b);
+  }
+};
+
+template<class A, class B>
+void operator/=(vector<A>& v, const B& x) {
+  for (typename vector<A>::iterator it=v.begin(),
        end=v.end();it!=end;++it) *it /= x;
 }
 
@@ -34,6 +48,7 @@ struct profile {
   jep::header head;
   vector<jep::val_t> prof, dprof, stdev, pseudo, dpseudo;
   vector<running_stat> dpseudo_stats;
+  vector< inverse<100> > cdf;
 
   static TRandom3 rand;
 
@@ -67,6 +82,10 @@ struct profile {
     pseudo.resize(head.r_num);
     dpseudo.resize(head.r_num);
     dpseudo_stats.resize(head.r_num);
+
+    cdf.reserve(head.r_num);
+    for (size_t i=0;i<head.r_num;++i) cdf.push_back(
+      inverse<100>(beta_cdf(dprof[i],sq(stdev[i])),0,1) );
   }
 
   void compare(const profile& other) {
@@ -80,20 +99,24 @@ struct profile {
 
   void new_pseudo() {
     // Generate pseudo data profile
-    for (size_t i=0;i<head.r_num;++i) {
-      static double psi;
-      do {
-      
-        psi = rand.Gaus(dprof[i],stdev[i]);
-        
-      } while ( psi < 0. || 1. < psi );
-      dpseudo[i] = psi;
+    {
+      const size_t last = head.r_num-1;
+      double sum = 0;
+      for (size_t i=0;i<last;++i) {
+        dpseudo[i] = cdf[i](rand.Rndm());
+        sum += dpseudo[i];
+        if (sum>1.) {
+          dpseudo[i] -= ( 1. - sum );
+          for (size_t j=i;i<last;++i) dpseudo[j] = 0;
+        }
+      }
+      dpseudo[last] = 1. - accumulate(dpseudo.begin(),--dpseudo.end(),0.);
     }
-    dpseudo /= accumulate(dpseudo.begin(),dpseudo.end(),0.);
+    // dpseudo /= accumulate(dpseudo.begin(),dpseudo.end(),0.);
     partial_sum( dpseudo.begin(), dpseudo.end(), pseudo.begin() );
 
     // push to running stat
-    for (size_t i=0;i<nr;++i) dpseudo_stats[i].push(dpseudo[i]);
+    for (size_t i=0;i<head.r_num;++i) dpseudo_stats[i].push(dpseudo[i]);
   }
 };
 TRandom3 profile::rand;
